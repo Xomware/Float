@@ -2,7 +2,8 @@ import SwiftUI
 
 struct DealCardView: View {
     let deal: Deal
-    
+    @State private var isBookmarked = false
+
     var body: some View {
         FloatCard {
             VStack(alignment: .leading, spacing: FloatSpacing.sm) {
@@ -11,41 +12,54 @@ struct DealCardView: View {
                     VStack(alignment: .leading, spacing: FloatSpacing.xs) {
                         Text(deal.venueName ?? "Unknown Venue")
                             .font(FloatFont.caption(.semibold))
-                            .foregroundStyle(FloatColors.textSecondary)
-                        
+                            .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                            .accessibilityHidden(true)
+
                         Text(deal.title)
                             .font(FloatFont.headline())
                             .lineLimit(2)
+                            .accessibilityHidden(true)
                     }
-                    
+
                     Spacer()
-                    
+
                     // Distance badge
                     if let distance = deal.distanceFromUser {
                         Text(formatDistance(distance))
                             .font(FloatFont.caption(.semibold))
-                            .foregroundStyle(FloatColors.textSecondary)
+                            .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                            .accessibilityLabel("\(formatDistance(distance))")
                     }
                 }
-                
+
                 // Discount display
                 HStack(spacing: FloatSpacing.md) {
-                    // Discount badge
                     FloatBadge(deal.discountDisplay, color: categoryColor)
-                    
+                        .accessibilityHidden(true) // included in overall label below
+
                     Spacer()
-                    
-                    // Timer
+
+                    // Expiry timer
                     HStack(spacing: FloatSpacing.xs) {
                         Image(systemName: "clock.fill")
                             .font(.system(size: 12))
+                            .accessibilityHidden(true)
                         Text(deal.expiresAt?.timeRemainingShort ?? "No time")
                             .font(FloatFont.caption(.semibold))
                     }
-                    .foregroundStyle(deal.expiresAt?.isExpiringSoon ?? false ? FloatColors.warning : FloatColors.textSecondary)
+                    .foregroundStyle(
+                        deal.expiresAt?.isExpiringSoon ?? false
+                            ? FloatColors.warning
+                            : FloatColors.adaptiveTextSecondary
+                    )
+                    .accessibilityLabel(
+                        deal.expiresAt?.isExpiringSoon ?? false
+                            ? "Expiring soon: \(deal.expiresAt?.timeRemainingShort ?? "")"
+                            : "Expires in \(deal.expiresAt?.timeRemainingShort ?? "unknown time")"
+                    )
                 }
-                
-                // Category and detail
+
+                // Category icon + terms
                 HStack(spacing: FloatSpacing.sm) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 8)
@@ -55,52 +69,85 @@ struct DealCardView: View {
                             .font(.system(size: 18))
                             .foregroundStyle(categoryColor)
                     }
-                    
+                    .accessibilityHidden(true)
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text(deal.category.uppercased())
                             .font(FloatFont.caption2(.semibold))
                             .foregroundStyle(categoryColor)
-                        
+
                         if let terms = deal.terms {
                             Text(terms)
                                 .font(FloatFont.caption2())
-                                .foregroundStyle(FloatColors.textSecondary)
+                                .foregroundStyle(FloatColors.adaptiveTextSecondary)
                                 .lineLimit(1)
                         }
                     }
-                    
+                    .accessibilityHidden(true)
+
                     Spacer()
+
+                    // Bookmark button
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) {
+                            isBookmarked.toggle()
+                        }
+                    } label: {
+                        Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(isBookmarked ? FloatColors.primary : FloatColors.adaptiveTextSecondary)
+                            .bookmarkBounce(isBookmarked: isBookmarked)
+                    }
+                    .accessibilityLabel(isBookmarked ? "Remove bookmark" : "Bookmark this deal")
+                    .accessibilityAddTraits(isBookmarked ? [.isButton, .isSelected] : .isButton)
                 }
             }
         }
+        .cardPressEffect()
+        // Comprehensive VoiceOver description for the whole card
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(accessibilityDescription)
+        .accessibilityAddTraits(.isButton)
     }
-    
+
+    // MARK: - Computed Helpers
+
+    private var accessibilityDescription: String {
+        var parts: [String] = []
+        parts.append(deal.title)
+        if let venue = deal.venueName { parts.append("at \(venue)") }
+        parts.append(deal.discountDisplay)
+        parts.append(deal.category)
+        if let distance = deal.distanceFromUser { parts.append(formatDistance(distance)) }
+        if let exp = deal.expiresAt?.timeRemainingShort { parts.append("expires in \(exp)") }
+        return parts.joined(separator: ", ")
+    }
+
     private var categoryColor: Color {
         switch deal.category.lowercased() {
         case "drink": return FloatColors.drinkColor
-        case "food": return FloatColors.foodColor
-        case "both": return FloatColors.comboColor
+        case "food":  return FloatColors.foodColor
+        case "both":  return FloatColors.comboColor
         case "flash": return FloatColors.eventColor
-        default: return FloatColors.primary
+        default:      return FloatColors.primary
         }
     }
-    
+
     private var categoryIcon: String {
         switch deal.category.lowercased() {
         case "drink": return "wineglass.fill"
-        case "food": return "fork.knife"
-        case "both": return "cart.fill"
+        case "food":  return "fork.knife"
+        case "both":  return "cart.fill"
         case "flash": return "bolt.fill"
-        default: return "tag.fill"
+        default:      return "tag.fill"
         }
     }
-    
+
     private func formatDistance(_ meters: Double) -> String {
         if meters < 1000 {
             return "\(Int(meters))m away"
         } else {
-            let km = meters / 1000
-            return String(format: "%.1f km away", km)
+            return String(format: "%.1f km away", meters / 1000)
         }
     }
 }
