@@ -27,8 +27,15 @@
     <string>Float accesses your photo library to set a profile picture.</string>
     <key>UIBackgroundModes</key>
     <array>
+        <string>fetch</string>
         <string>location</string>
+        <string>processing</string>
         <string>remote-notification</string>
+    </array>
+    <key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array>
+        <string>com.xomware.float.geofence-refresh</string>
+        <string>com.xomware.float.notification-sync</string>
     </array>
     <key>SUPABASE_URL</key>
     <string>$(SUPABASE_URL)</string>
