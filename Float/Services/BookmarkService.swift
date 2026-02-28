@@ -1,124 +1,161 @@
 import Foundation
 import Supabase
+import OSLog
 
+private let logger = Logger(subsystem: "com.xomware.float", category: "Bookmarks")
+
+// MARK: - BookmarkService
+
+/// Manages deal and venue bookmarks, syncing with Supabase.
+/// Venue bookmarks are used by the `notify-favorites` edge function
+/// to send push notifications when a bookmarked venue posts a new deal.
 @MainActor
 class BookmarkService: ObservableObject {
     static let shared = BookmarkService()
-    
+
+    // MARK: - Published State
     @Published var savedDealIds: Set<UUID> = []
     @Published var savedVenueIds: Set<UUID> = []
     @Published var isLoading = false
-    
+
+    // MARK: - Private
     private let supabaseClient = SupabaseClientService.shared.client
     private let userDefaults = UserDefaults.standard
-    
-    // Cache keys
-    private let savedDealsKey = "float_saved_deals"
+    private let savedDealsKey  = "float_saved_deals"
     private let savedVenuesKey = "float_saved_venues"
-    
+
     init() {
         loadCachedBookmarks()
     }
-    
+
     // MARK: - Deal Bookmarks
+
     func saveDeal(_ dealId: UUID) async {
-        // Update local cache
         savedDealIds.insert(dealId)
         cacheSavedDeals()
-        
-        // Sync with Supabase (would do in production)
-        // try? await supabaseClient.from("bookmarks")
-        //     .insert(["deal_id": dealId.uuidString, "user_id": userId])
-        //     .execute()
-        
-        Logger.deals.info("Deal bookmarked: \(dealId)")
+
+        do {
+            try await supabaseClient
+                .from("bookmarks")
+                .upsert(["deal_id": dealId.uuidString], onConflict: "user_id,deal_id")
+                .execute()
+            logger.info("Deal bookmarked (server): \(dealId)")
+        } catch {
+            logger.error("Failed to save deal bookmark on server: \(error)")
+        }
     }
-    
+
     func unsaveDeal(_ dealId: UUID) async {
-        // Remove from local cache
         savedDealIds.remove(dealId)
         cacheSavedDeals()
-        
-        // Sync with Supabase (would do in production)
-        // try? await supabaseClient.from("bookmarks")
-        //     .delete()
-        //     .eq("deal_id", value: dealId.uuidString)
-        //     .execute()
-        
-        Logger.deals.info("Deal unbookmarked: \(dealId)")
+
+        do {
+            try await supabaseClient
+                .from("bookmarks")
+                .delete()
+                .eq("deal_id", value: dealId.uuidString)
+                .execute()
+            logger.info("Deal unbookmarked (server): \(dealId)")
+        } catch {
+            logger.error("Failed to remove deal bookmark on server: \(error)")
+        }
     }
-    
+
     // MARK: - Venue Bookmarks
+    // NOTE: Venue bookmarks are synced to Supabase so `notify-favorites`
+    // can find which users to notify when a venue posts a new deal.
+
     func saveVenue(_ venueId: UUID) async {
-        // Update local cache
         savedVenueIds.insert(venueId)
         cacheSavedVenues()
-        
-        // Sync with Supabase (would do in production)
-        // try? await supabaseClient.from("bookmarks")
-        //     .insert(["venue_id": venueId.uuidString, "user_id": userId])
-        //     .execute()
-        
-        Logger.deals.info("Venue bookmarked: \(venueId)")
+
+        do {
+            try await supabaseClient
+                .from("bookmarks")
+                .upsert(["venue_id": venueId.uuidString], onConflict: "user_id,venue_id")
+                .execute()
+            logger.info("Venue bookmarked (server): \(venueId)")
+        } catch {
+            logger.error("Failed to save venue bookmark on server: \(error)")
+        }
     }
-    
+
     func unsaveVenue(_ venueId: UUID) async {
-        // Remove from local cache
         savedVenueIds.remove(venueId)
         cacheSavedVenues()
-        
-        // Sync with Supabase (would do in production)
-        // try? await supabaseClient.from("bookmarks")
-        //     .delete()
-        //     .eq("venue_id", value: venueId.uuidString)
-        //     .execute()
-        
-        Logger.deals.info("Venue unbookmarked: \(venueId)")
+
+        do {
+            try await supabaseClient
+                .from("bookmarks")
+                .delete()
+                .eq("venue_id", value: venueId.uuidString)
+                .execute()
+            logger.info("Venue unbookmarked (server): \(venueId)")
+        } catch {
+            logger.error("Failed to remove venue bookmark on server: \(error)")
+        }
     }
-    
+
     // MARK: - Quick Checks
-    func isDealSaved(_ dealId: UUID) -> Bool {
-        savedDealIds.contains(dealId)
-    }
-    
-    func isVenueSaved(_ venueId: UUID) -> Bool {
-        savedVenueIds.contains(venueId)
-    }
-    
+
+    func isDealSaved(_ dealId: UUID) -> Bool { savedDealIds.contains(dealId) }
+    func isVenueSaved(_ venueId: UUID) -> Bool { savedVenueIds.contains(venueId) }
+
     // MARK: - Sync from Server
+
     func syncBookmarks() async {
         isLoading = true
         defer { isLoading = false }
-        
-        // In production, this would fetch bookmarks from Supabase
-        // For now, just work with local cache
-        loadCachedBookmarks()
-        Logger.deals.info("Bookmarks synced")
+
+        do {
+            struct BookmarkRow: Decodable {
+                let dealId: UUID?
+                let venueId: UUID?
+                enum CodingKeys: String, CodingKey {
+                    case dealId = "deal_id"
+                    case venueId = "venue_id"
+                }
+            }
+
+            let rows: [BookmarkRow] = try await supabaseClient
+                .from("bookmarks")
+                .select("deal_id, venue_id")
+                .execute()
+                .value
+
+            savedDealIds  = Set(rows.compactMap(\.dealId))
+            savedVenueIds = Set(rows.compactMap(\.venueId))
+            cacheSavedDeals()
+            cacheSavedVenues()
+            logger.info("Bookmarks synced from server: \(rows.count) rows")
+        } catch {
+            logger.error("Failed to sync bookmarks from server: \(error)")
+            // Fall back to local cache
+            loadCachedBookmarks()
+        }
     }
-    
+
     // MARK: - Local Caching
+
     private func loadCachedBookmarks() {
         if let dealsData = userDefaults.data(forKey: savedDealsKey),
            let dealsArray = try? JSONDecoder().decode([String].self, from: dealsData) {
             savedDealIds = Set(dealsArray.compactMap { UUID(uuidString: $0) })
         }
-        
         if let venuesData = userDefaults.data(forKey: savedVenuesKey),
            let venuesArray = try? JSONDecoder().decode([String].self, from: venuesData) {
             savedVenueIds = Set(venuesArray.compactMap { UUID(uuidString: $0) })
         }
     }
-    
+
     private func cacheSavedDeals() {
-        let dealsArray = Array(savedDealIds).map { $0.uuidString }
-        if let encoded = try? JSONEncoder().encode(dealsArray) {
+        if let encoded = try? JSONEncoder().encode(Array(savedDealIds).map { $0.uuidString }) {
             userDefaults.set(encoded, forKey: savedDealsKey)
         }
     }
-    
+
     private func cacheSavedVenues() {
-        let venuesArray = Array(savedVenueIds).map { $0.uuidString }
-        if let encoded = try? JSONEncoder().encode(venuesArray) {
+        if let encoded = try? JSONEncoder().encode(Array(savedVenueIds).map { $0.uuidString }) {
             userDefaults.set(encoded, forKey: savedVenuesKey)
         }
     }
