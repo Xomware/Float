@@ -1,0 +1,11 @@
+Welcome to Float v1.0.0 — your real-time guide to the best happy hour deals, drink specials, and restaurant offers near you!
+
+🥂 What's new in this release:
+• Discover nearby happy hour deals and bar specials in real-time
+• Location-aware map view to find deals around you
+• Follow your favorite bars and restaurants for instant deal alerts
+• Filter deals by type: drinks, food, wine nights, and more
+• Save deals to your personal wishlist
+• Share deals with friends to plan your night out
+
+This is our first public release. We're just getting started — more cities, more deals, and more features coming soon. Cheers! 🍻
