@@ -1,0 +1,82 @@
+# Fastlane Deliver Configuration
+# Float — com.xomware.float
+# Documentation: https://docs.fastlane.tools/actions/deliver/
+
+# ---------------------------------------------------------------
+# App Identity
+# ---------------------------------------------------------------
+app_identifier "com.xomware.float"
+username ENV["APPLE_ID"]
+
+# ---------------------------------------------------------------
+# Metadata Paths
+# ---------------------------------------------------------------
+metadata_path "./appstore/metadata"
+screenshots_path "./appstore/screenshots"
+
+# ---------------------------------------------------------------
+# Submission Behavior
+# ---------------------------------------------------------------
+
+# Skip binary upload (use if uploading metadata only)
+# skip_binary_upload true
+
+# Skip screenshots upload (use if screenshots are not ready)
+# skip_screenshots true
+
+# Submit for review automatically after upload
+submit_for_review false
+
+# Automatically release after approval (set true for auto-release)
+automatic_release false
+
+# ---------------------------------------------------------------
+# App Store Availability
+# ---------------------------------------------------------------
+price_tier 0  # Free
+
+# Phased release (roll out to 100% over 7 days)
+phased_release true
+
+# ---------------------------------------------------------------
+# Platform
+# ---------------------------------------------------------------
+platform :ios
+
+# ---------------------------------------------------------------
+# App Rating / Content Advisory
+# ---------------------------------------------------------------
+# Float is appropriate for 17+ due to alcohol-related content
+# Set in App Store Connect under "Age Rating"
+# content_rating({
+#   "Alcohol, Tobacco, or Drug Use or References" => "Frequent/Intense"
+# })
+
+# ---------------------------------------------------------------
+# Localization
+# ---------------------------------------------------------------
+# Default language
+# Languages with metadata in ./appstore/metadata/<lang>/
+# Currently only en-US is supported for v1.0.0
+
+# ---------------------------------------------------------------
+# App Store Information
+# ---------------------------------------------------------------
+# These URLs should also live in metadata files but can be set here
+support_url({
+  "default" => "https://float.xomware.com/support"
+})
+
+privacy_url({
+  "default" => "https://float.xomware.com/privacy"
+})
+
+marketing_url({
+  "default" => "https://float.xomware.com"
+})
+
+# ---------------------------------------------------------------
+# Verification
+# ---------------------------------------------------------------
+# Run `bundle exec fastlane deliver --validate_only` to validate
+# metadata and screenshots without submitting.
