@@ -16,6 +16,15 @@ struct Deal: Identifiable {
     var terms: String?
     var distance: Double? // in meters
     var distanceFromUser: Double? // in meters for sorting
+    var categoryColor: Color {
+        switch category.lowercased() {
+        case "drink": return FloatColors.drinkColor
+        case "food":  return FloatColors.foodColor
+        case "both":  return FloatColors.comboColor
+        case "flash": return FloatColors.eventColor
+        default:      return FloatColors.primary
+        }
+    }
     var discountDisplay: String {
         guard let value = discountValue else { return "" }
         switch discountType {
@@ -61,12 +70,17 @@ class DealViewModel: ObservableObject {
     @Published var deals: [Deal] = []
     @Published var filteredDeals: [Deal] = []
     @Published var isLoading = false
+    @Published var isLoadingMore = false
     @Published var sortOption: DealSortOption = .distance
     @Published var activeFilter: DealCategory = .all
     @Published var currentPage: Int = 1
     @Published var hasMore: Bool = true
     @Published var userLocation: CLLocationCoordinate2D?
     @Published var dealCount: Int = 0
+    /// Non-nil when a non-blocking error occurred (shown as banner)
+    @Published var errorMessage: String?
+    /// Non-nil when the initial load failed entirely (shows full-screen error)
+    @Published var loadError: Error?
     
     private let pageSize = 20
     private let locationService = LocationService()
@@ -77,17 +91,21 @@ class DealViewModel: ObservableObject {
     
     func loadDeals() async {
         isLoading = true
+        loadError = nil
+        errorMessage = nil
         defer { isLoading = false }
-        
+
         currentPage = 1
         hasMore = true
         deals.removeAll()
-        
+
         await loadMoreDeals()
     }
-    
+
     func loadMoreDeals() async {
-        guard !isLoading else { return }
+        guard !isLoading && !isLoadingMore else { return }
+        isLoadingMore = currentPage > 1
+        defer { isLoadingMore = false }
         
         Logger.deals.info("Loading deals page \(currentPage)")
         
@@ -147,8 +165,8 @@ class DealViewModel: ObservableObject {
         filteredDeals = result
     }
     
-    func updateFilter(_ category: DealCategory) {
-        activeFilter = category
+    func updateFilter(_ category: DealCategory?) {
+        activeFilter = category ?? .all
         applyFiltersAndSort()
     }
     
