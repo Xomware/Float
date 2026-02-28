@@ -1,0 +1,13 @@
+git_url(ENV["MATCH_GIT_URL"] || "git@github.com:Xomware/float-certificates.git")
+storage_mode("git")
+
+type("appstore")                     # Default cert type: appstore, adhoc, development
+
+app_identifier(["com.xomware.float"])
+username("ci@xomware.com")
+
+# CI mode — never create or overwrite certificates, only read existing ones
+readonly(true)
+
+# Clone using HTTP basic auth in CI (set via MATCH_PASSWORD env var)
+clone_branch_directly(true)

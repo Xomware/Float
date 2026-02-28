@@ -1,0 +1,173 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Float · CI/CD Pipeline
+# Sprint 6 — TestFlight & CI/CD
+#
+# Triggers:
+#   • Pull request to main  → lint + build + test
+#   • Push to main          → lint + build + test + TestFlight upload
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Float CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  XCODE_VERSION: "16.2"       # Pin Xcode for reproducible builds
+  RUBY_VERSION:  "3.3"
+  SWIFT_STRICT_CONCURRENCY: "complete"
+
+# ── Jobs ─────────────────────────────────────────────────────────────────────
+
+jobs:
+
+  # ── 1. SwiftLint ───────────────────────────────────────────────────────────
+  lint:
+    name: SwiftLint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run SwiftLint
+        uses: norio-nomura/action-swiftlint@3.2.1
+        with:
+          args: --strict
+
+  # ── 2. Build & Test ────────────────────────────────────────────────────────
+  build-test:
+    name: Build & Test
+    runs-on: macos-15
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Xcode ──────────────────────────────────────────────────────────────
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        run: sudo xcode-select -switch /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      # ── Ruby / Fastlane ────────────────────────────────────────────────────
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ env.RUBY_VERSION }}
+          bundler-cache: true   # auto-runs `bundle install` and caches gems
+
+      # ── SPM cache ──────────────────────────────────────────────────────────
+      - name: Cache Swift Package Manager
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+
+      # ── Resolve dependencies ───────────────────────────────────────────────
+      - name: Resolve SPM dependencies
+        run: swift package resolve
+
+      # ── Build (SPM) ────────────────────────────────────────────────────────
+      - name: Build (swift build)
+        run: swift build -c release
+
+      # ── Unit tests ─────────────────────────────────────────────────────────
+      - name: Run tests
+        run: |
+          swift test --parallel 2>&1 | tee test-output.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-output.txt
+          retention-days: 14
+
+  # ── 3. TestFlight Upload ────────────────────────────────────────────────────
+  # Runs ONLY on push to main (not on PRs)
+  testflight:
+    name: TestFlight Upload
+    runs-on: macos-15
+    needs: build-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    environment: testflight   # Requires "testflight" GitHub environment with secrets
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # Full history for changelog generation
+
+      # ── Xcode ──────────────────────────────────────────────────────────────
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        run: sudo xcode-select -switch /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+
+      # ── Ruby / Fastlane ────────────────────────────────────────────────────
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ env.RUBY_VERSION }}
+          bundler-cache: true
+
+      # ── SPM cache ──────────────────────────────────────────────────────────
+      - name: Cache Swift Package Manager
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+
+      - name: Resolve SPM dependencies
+        run: swift package resolve
+
+      # ── App Store Connect API Key ──────────────────────────────────────────
+      - name: Write App Store Connect API key
+        env:
+          APP_STORE_CONNECT_API_KEY_JSON: ${{ secrets.APP_STORE_CONNECT_API_KEY_JSON }}
+        run: |
+          mkdir -p fastlane
+          echo "$APP_STORE_CONNECT_API_KEY_JSON" > fastlane/api_key.json
+
+      # ── Match (code signing) ───────────────────────────────────────────────
+      - name: Setup SSH for Match certificate repo
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.MATCH_SSH_PRIVATE_KEY }}
+
+      # ── Build + upload via Fastlane ────────────────────────────────────────
+      - name: Fastlane beta
+        env:
+          MATCH_PASSWORD:              ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL:               ${{ secrets.MATCH_GIT_URL }}
+          APPLE_TEAM_ID:               ${{ secrets.APPLE_TEAM_ID }}
+          ITC_TEAM_ID:                 ${{ secrets.ITC_TEAM_ID }}
+          APP_STORE_CONNECT_API_KEY_PATH: fastlane/api_key.json
+          GITHUB_RUN_NUMBER:           ${{ github.run_number }}
+          SLACK_URL:                   ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: bundle exec fastlane beta
+
+      # ── Upload IPA artifact ────────────────────────────────────────────────
+      - name: Upload IPA
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Float-${{ github.run_number }}.ipa
+          path: build/Float.ipa
+          retention-days: 30
+
+      # ── Cleanup secrets ────────────────────────────────────────────────────
+      - name: Remove API key
+        if: always()
+        run: rm -f fastlane/api_key.json
