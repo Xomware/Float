@@ -4,12 +4,17 @@ import OSLog
 
 private let logger = Logger(subsystem: "com.xomware.float", category: "FloatApp")
 
+// import FirebaseCore        // ← Uncomment after adding Firebase SDK
+// import PostHog             // ← Uncomment after adding PostHog SDK
+
 @main
 struct FloatApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var authService = AuthService()
-    @StateObject private var notificationService = NotificationService.shared
-    @StateObject private var geofenceManager = GeofenceManager.shared
+
+    init() {
+        configureSDKs()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -100,5 +105,18 @@ struct FloatApp: App {
             await notificationService.refreshPendingNotifications()
             await geofenceManager.refreshGeofences(for: userId)
         }
+    }
+
+    // MARK: - SDK Initialization
+
+    /// Central SDK bootstrap. Called once at app launch before any scene is created.
+    private func configureSDKs() {
+        // ── Firebase (Crashlytics) ────────────────────────────────────────
+        // FirebaseApp.configure()              // must come before CrashlyticsService
+        CrashlyticsService.shared.configure()
+
+        // ── PostHog (Analytics) ───────────────────────────────────────────
+        // Reads POSTHOG_API_KEY from Info.plist — set in Xcode build settings
+        AnalyticsService.shared.configure()
     }
 }

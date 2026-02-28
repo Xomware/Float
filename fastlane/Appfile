@@ -1,0 +1,5 @@
+app_identifier("com.xomware.float")   # The bundle identifier of your app
+apple_id("ci@xomware.com")            # Your Apple Developer Portal username
+
+itc_team_id(ENV["ITC_TEAM_ID"])       # App Store Connect Team ID
+team_id(ENV["APPLE_TEAM_ID"])         # Developer Portal Team ID

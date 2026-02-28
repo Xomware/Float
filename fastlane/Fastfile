@@ -1,0 +1,163 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Float · Fastfile
+# Sprint 6 — Launch Prep: TestFlight & CI/CD
+#
+# Lanes:
+#   test        → Run unit tests locally or in CI
+#   lint        → Run SwiftLint
+#   beta        → Build + upload to TestFlight (used by GH Actions on push to main)
+#   build_only  → Build archive without uploading (smoke check)
+#   certs       → Sync match certificates (dev use)
+# ─────────────────────────────────────────────────────────────────────────────
+
+default_platform(:ios)
+
+# ── Constants ──────────────────────────────────────────────────────────────
+SCHEME        = "Float"
+WORKSPACE     = "Float.xcworkspace"
+PROJECT       = "Float.xcodeproj"
+BUNDLE_ID     = "com.xomware.float"
+OUTPUT_DIR    = "build"
+IPA_PATH      = "#{OUTPUT_DIR}/Float.ipa"
+
+platform :ios do
+
+  # ── Before all lanes ─────────────────────────────────────────────────────
+  before_all do
+    # Ensure build output directory exists
+    FileUtils.mkdir_p(OUTPUT_DIR)
+  end
+
+  # ── test ─────────────────────────────────────────────────────────────────
+  desc "Run unit tests"
+  lane :test do
+    run_tests(
+      scheme:              SCHEME,
+      project:             PROJECT,
+      devices:             ["iPhone 15 Pro"],
+      output_directory:    "#{OUTPUT_DIR}/test-results",
+      output_files:        "report.junit",
+      clean:               true,
+      skip_build:          false
+    )
+  end
+
+  # ── lint ─────────────────────────────────────────────────────────────────
+  desc "Run SwiftLint"
+  lane :lint do
+    swiftlint(
+      mode:         :lint,
+      strict:       true,
+      output_file:  "#{OUTPUT_DIR}/swiftlint.txt",
+      reporter:     "html",
+      ignore_exit_status: false
+    )
+  end
+
+  # ── certs ─────────────────────────────────────────────────────────────────
+  desc "Sync code signing certificates via Match (readonly in CI)"
+  lane :certs do
+    match(
+      type:       "appstore",
+      readonly:   is_ci  # readonly automatically in CI; writable locally
+    )
+  end
+
+  # ── build_only ────────────────────────────────────────────────────────────
+  desc "Build an archive (no upload) — for PR smoke checks"
+  lane :build_only do
+    certs
+
+    increment_build_number(
+      build_number: ENV["GITHUB_RUN_NUMBER"] || latest_testflight_build_number + 1,
+      xcodeproj:    PROJECT
+    )
+
+    build_app(
+      scheme:                      SCHEME,
+      project:                     PROJECT,
+      configuration:               "Release",
+      output_directory:            OUTPUT_DIR,
+      output_name:                 "Float.ipa",
+      export_method:               "app-store",
+      clean:                       true,
+      include_symbols:             true,
+      include_bitcode:             false,
+      export_xcargs:               "-allowProvisioningUpdates",
+      xcargs:                      "SWIFT_SERIALIZE_DEBUGGING_OPTIONS=NO"
+    )
+  end
+
+  # ── beta ─────────────────────────────────────────────────────────────────
+  desc "Build and upload to TestFlight"
+  lane :beta do
+    # 1. Sync certificates
+    certs
+
+    # 2. Bump build number using CI run number (unique, monotonically increasing)
+    increment_build_number(
+      build_number: ENV["GITHUB_RUN_NUMBER"] || Time.now.strftime("%Y%m%d%H%M"),
+      xcodeproj:    PROJECT
+    )
+
+    current_build = get_build_number(xcodeproj: PROJECT)
+    current_version = get_version_number(xcodeproj: PROJECT, target: SCHEME)
+    UI.important("Building #{SCHEME} v#{current_version} (#{current_build})")
+
+    # 3. Build the archive
+    build_app(
+      scheme:              SCHEME,
+      project:             PROJECT,
+      configuration:       "Release",
+      output_directory:    OUTPUT_DIR,
+      output_name:         "Float.ipa",
+      export_method:       "app-store",
+      clean:               true,
+      include_symbols:     true,
+      include_bitcode:     false,
+      export_xcargs:       "-allowProvisioningUpdates"
+    )
+
+    # 4. Upload to TestFlight
+    upload_to_testflight(
+      ipa:                    IPA_PATH,
+      api_key_path:           ENV["APP_STORE_CONNECT_API_KEY_PATH"] || "fastlane/api_key.json",
+      skip_waiting_for_build_processing: true,   # don't block CI
+      distribute_external:    false,              # internal testers only for now
+      notify_external_testers: false,
+      changelog:              changelog_from_git_commits(
+                                commits_count:    10,
+                                pretty:           "- %s",
+                                date_format:      "short",
+                                match_lightweight_tag: false
+                              )
+    )
+
+    # 5. Notify via Slack (optional — requires SLACK_URL secret)
+    if ENV["SLACK_URL"]
+      slack(
+        message:  "🍹 Float #{current_version} (#{current_build}) uploaded to TestFlight!",
+        channel:  "#float-releases",
+        success:  true
+      )
+    end
+  end
+
+  # ── After all (success) ──────────────────────────────────────────────────
+  after_all do |lane|
+    UI.success("✅ Lane '#{lane}' completed successfully.")
+  end
+
+  # ── Error handler ─────────────────────────────────────────────────────────
+  error do |lane, exception|
+    UI.error("❌ Lane '#{lane}' failed: #{exception.message}")
+    if ENV["SLACK_URL"]
+      slack(
+        message:  "❌ Float CI failure in lane '#{lane}': #{exception.message}",
+        channel:  "#float-releases",
+        success:  false
+      )
+    end
+  end
+
+end

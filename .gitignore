@@ -49,3 +49,13 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+fastlane/api_key.json   # Never commit ASC API key — written at CI runtime
+
+# Build outputs
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM/
+
+# Bundler
+vendor/bundle/
