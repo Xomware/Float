@@ -1,6 +1,10 @@
 import SwiftUI
 import Supabase
 import CryptoKit
+import CoreImage.CIFilterBuiltins
+import OSLog
+
+private let logger = Logger(subsystem: "com.xomware.float", category: "Redemption")
 
 struct Redemption: Identifiable, Codable {
     let id: UUID
@@ -47,14 +51,6 @@ class RedemptionViewModel: ObservableObject {
         error = nil
         
         do {
-            // Check max redemptions
-            if let maxRedemptions = deal.maxRedemptions,
-               deal.redemptionCount >= maxRedemptions {
-                error = "This deal has reached its redemption limit"
-                isLoading = false
-                return
-            }
-            
             // Generate unique QR token
             let token = UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(32).lowercased()
             redemptionToken = String(token)
@@ -63,7 +59,7 @@ class RedemptionViewModel: ObservableObject {
             let redemption: [String: AnyCodable] = [
                 "user_id": AnyCodable(userId.uuidString),
                 "deal_id": AnyCodable(deal.id.uuidString),
-                "venue_id": AnyCodable(deal.venueId?.uuidString ?? ""),
+                "venue_id": AnyCodable(deal.venueId.uuidString),
                 "qr_token": AnyCodable(String(token)),
                 "status": AnyCodable("pending")
             ]
@@ -76,10 +72,10 @@ class RedemptionViewModel: ObservableObject {
                 self.successAnimation = true
             }
             
-            Logger.deals.info("Redemption created for deal: \(deal.id)")
+            logger.info("Redemption created for deal: \(deal.id)")
         } catch {
             self.error = error.localizedDescription
-            Logger.deals.error("Redemption error: \(error.localizedDescription)")
+            logger.error("Redemption error: \(error.localizedDescription)")
         }
         
         isLoading = false
@@ -92,18 +88,12 @@ class RedemptionViewModel: ObservableObject {
         
         do {
             // Mock fetch - would call Supabase in production
-            // let response = try await supabaseClient.from("redemptions")
-            //     .select("*, deals(*)")
-            //     .eq("user_id", value: userId.uuidString)
-            //     .execute()
-            
-            // For now, set empty array
             self.redemptions = []
             
-            Logger.deals.info("Loaded redemption history")
+            logger.info("Loaded redemption history")
         } catch {
             self.error = error.localizedDescription
-            Logger.deals.error("History load error: \(error.localizedDescription)")
+            logger.error("History load error: \(error.localizedDescription)")
         }
         
         isLoading = false
