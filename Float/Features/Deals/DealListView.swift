@@ -165,6 +165,9 @@ struct DealListView: View {
                     } else {
                         // Deal list with animated cards
                         ScrollView {
+                            // Personalized recommendations
+                            RecommendedDealsView(deals: viewModel.filteredDeals)
+
                             LazyVStack(spacing: FloatSpacing.sm) {
                                 ForEach(Array(viewModel.filteredDeals.enumerated()), id: \.element.id) { index, deal in
                                     NavigationLink(destination: DealDetailView(deal: deal)) {
