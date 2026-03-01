@@ -2,10 +2,47 @@ import SwiftUI
 
 struct DealCardView: View {
     let deal: Deal
+    var heroImageURL: String? = nil
     @State private var isBookmarked = false
 
     var body: some View {
         FloatCard {
+            VStack(alignment: .leading, spacing: 0) {
+                // Hero image thumbnail
+                if let imageURL = heroImageURL, let url = URL(string: imageURL) {
+                    ZStack(alignment: .bottomLeading) {
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(height: 120)
+                                    .clipped()
+                            case .empty:
+                                Rectangle()
+                                    .fill(FloatColors.cardBackground)
+                                    .frame(height: 120)
+                                    .overlay { ProgressView().tint(FloatColors.primary) }
+                            default:
+                                Rectangle()
+                                    .fill(FloatColors.cardBackground)
+                                    .frame(height: 120)
+                            }
+                        }
+
+                        // Gradient overlay for text readability
+                        LinearGradient(
+                            colors: [.clear, .black.opacity(0.5)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .frame(height: 60)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: FloatSpacing.cardRadius - 2))
+                    .padding(.bottom, FloatSpacing.sm)
+                }
+
             VStack(alignment: .leading, spacing: FloatSpacing.sm) {
                 // Header with venue and distance
                 HStack(alignment: .top, spacing: FloatSpacing.sm) {
@@ -101,6 +138,7 @@ struct DealCardView: View {
                     .accessibilityLabel(isBookmarked ? "Remove bookmark" : "Bookmark this deal")
                     .accessibilityAddTraits(isBookmarked ? [.isButton, .isSelected] : .isButton)
                 }
+            }
             }
         }
         .cardPressEffect()
