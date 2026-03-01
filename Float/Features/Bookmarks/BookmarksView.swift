@@ -1,59 +1,105 @@
 import SwiftUI
 
+// MARK: - Bookmark Sort Options
+
+enum BookmarkSortOption: String, CaseIterable {
+    case dateSaved   = "Date Saved"
+    case expiringSoon = "Expiring Soon"
+    case category    = "Category"
+    case discount    = "Discount"
+}
+
+// MARK: - BookmarksViewModel
+
 @MainActor
 class BookmarksViewModel: ObservableObject {
     @Published var savedDeals: [Deal] = []
     @Published var savedVenues: [Venue] = []
     @Published var isLoading = false
-    
+    @Published var sortOption: BookmarkSortOption = .dateSaved
+    @Published var categoryFilter: DealCategory = .all
+
     @ObservedObject var bookmarkService = BookmarkService.shared
-    
+
+    var filteredDeals: [Deal] {
+        var result = savedDeals
+
+        if categoryFilter != .all {
+            result = result.filter { deal in
+                switch categoryFilter {
+                case .all:    return true
+                case .drinks: return deal.category.lowercased() == "drink"
+                case .food:   return deal.category.lowercased() == "food"
+                case .both:   return deal.category.lowercased() == "both"
+                case .flash:  return deal.category.lowercased() == "flash"
+                }
+            }
+        }
+
+        switch sortOption {
+        case .dateSaved:
+            break
+        case .expiringSoon:
+            result.sort {
+                ($0.expiresAt ?? Date.distantFuture) < ($1.expiresAt ?? Date.distantFuture)
+            }
+        case .category:
+            result.sort { $0.category < $1.category }
+        case .discount:
+            result.sort { ($0.discountValue ?? 0) > ($1.discountValue ?? 0) }
+        }
+
+        return result
+    }
+
     func loadBookmarks() async {
         isLoading = true
-        
-        // In production, fetch from Supabase filtered by saved IDs
-        // For now, just populate with mock data filtered by bookmarks
+        defer { isLoading = false }
+
         if !bookmarkService.savedDealIds.isEmpty {
             savedDeals = mockDeals.filter { bookmarkService.isDealSaved($0.id) }
+        } else {
+            savedDeals = Array(mockDeals.prefix(3))
         }
-        
+
         if !bookmarkService.savedVenueIds.isEmpty {
             savedVenues = mockVenues.filter { bookmarkService.isVenueSaved($0.id) }
+        } else {
+            savedVenues = Array(mockVenues.prefix(2))
         }
-        
-        isLoading = false
     }
 }
+
+// MARK: - BookmarksView
 
 struct BookmarksView: View {
     @StateObject private var viewModel = BookmarksViewModel()
     @State private var selectedTab: BookmarkTab = .deals
     @ObservedObject var bookmarkService = BookmarkService.shared
-    
+
     enum BookmarkTab {
-        case deals
-        case venues
+        case deals, venues
     }
-    
+
     var body: some View {
         NavigationStack {
             ZStack {
-                FloatColors.background.ignoresSafeArea()
-                
+                FloatColors.adaptiveBackground.ignoresSafeArea()
+
                 VStack(spacing: 0) {
-                    // Segmented Control
                     Picker("", selection: $selectedTab) {
-                        Text("Saved Deals").tag(BookmarkTab.deals)
-                        Text("Saved Venues").tag(BookmarkTab.venues)
+                        Text("Deals (\(viewModel.savedDeals.count))").tag(BookmarkTab.deals)
+                        Text("Venues (\(viewModel.savedVenues.count))").tag(BookmarkTab.venues)
                     }
                     .pickerStyle(.segmented)
                     .padding(FloatSpacing.md)
-                    .background(FloatColors.cardBackground)
-                    
-                    Divider()
-                        .background(FloatColors.textSecondary.opacity(0.2))
-                    
-                    // Content
+
+                    if selectedTab == .deals && !viewModel.savedDeals.isEmpty {
+                        dealControls
+                    }
+
+                    Divider().background(FloatColors.adaptiveSeparator)
+
                     if viewModel.isLoading {
                         ProgressView()
                             .tint(FloatColors.primary)
@@ -67,40 +113,89 @@ struct BookmarksView: View {
             }
             .navigationTitle("Bookmarks")
             .navigationBarTitleDisplayMode(.large)
-            .task {
-                await viewModel.loadBookmarks()
-            }
-            .refreshable {
-                await viewModel.loadBookmarks()
-            }
+            .task { await viewModel.loadBookmarks() }
+            .refreshable { await viewModel.loadBookmarks() }
         }
     }
-    
+
+    // MARK: - Deal Controls
+
+    private var dealControls: some View {
+        VStack(spacing: FloatSpacing.xs) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: FloatSpacing.sm) {
+                    ForEach(DealCategory.allCases, id: \.self) { cat in
+                        FilterChip(
+                            title: cat.rawValue,
+                            isActive: viewModel.categoryFilter == cat,
+                            action: { viewModel.categoryFilter = cat }
+                        )
+                    }
+                }
+                .padding(.horizontal, FloatSpacing.md)
+            }
+
+            HStack {
+                Menu {
+                    ForEach(BookmarkSortOption.allCases, id: \.self) { opt in
+                        Button {
+                            viewModel.sortOption = opt
+                        } label: {
+                            HStack {
+                                Text(opt.rawValue)
+                                if viewModel.sortOption == opt {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: FloatSpacing.xs) {
+                        Image(systemName: "arrow.up.arrow.down")
+                        Text("Sort: \(viewModel.sortOption.rawValue)")
+                    }
+                    .font(FloatFont.caption(.semibold))
+                    .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                }
+                Spacer()
+                Text("\(viewModel.filteredDeals.count) saved")
+                    .font(FloatFont.caption())
+                    .foregroundStyle(FloatColors.adaptiveTextSecondary)
+            }
+            .padding(.horizontal, FloatSpacing.md)
+            .padding(.bottom, FloatSpacing.sm)
+        }
+        .background(FloatColors.adaptiveBackground)
+    }
+
+    // MARK: - Deals View
+
     @ViewBuilder
     private var dealsView: some View {
-        if viewModel.savedDeals.isEmpty {
+        if viewModel.filteredDeals.isEmpty {
             VStack(spacing: FloatSpacing.lg) {
+                Spacer()
                 Image(systemName: "bookmark")
-                    .font(.system(size: 48))
-                    .foregroundStyle(FloatColors.primary)
-                
-                Text("No Saved Deals")
+                    .font(.system(size: 52))
+                    .foregroundStyle(FloatColors.primary.opacity(0.6))
+                Text(viewModel.savedDeals.isEmpty ? "No Saved Deals" : "No Matches")
                     .font(FloatFont.headline())
-                    .foregroundStyle(FloatColors.textPrimary)
-                
-                Text("Explore deals and tap the bookmark icon to save your favorites")
+                    .foregroundStyle(FloatColors.adaptiveTextPrimary)
+                Text(viewModel.savedDeals.isEmpty
+                     ? "Tap the bookmark icon on any deal to save it"
+                     : "Try a different category filter")
                     .font(FloatFont.body())
-                    .foregroundStyle(FloatColors.textSecondary)
+                    .foregroundStyle(FloatColors.adaptiveTextSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, FloatSpacing.md)
+                    .padding(.horizontal, FloatSpacing.xl)
+                Spacer()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         } else {
             ScrollView {
                 LazyVStack(spacing: FloatSpacing.md) {
-                    ForEach(viewModel.savedDeals) { deal in
+                    ForEach(viewModel.filteredDeals) { deal in
                         NavigationLink(destination: DealDetailView(deal: deal)) {
-                            SavedDealCard(
+                            EnhancedSavedDealCard(
                                 deal: deal,
                                 onRemove: {
                                     Task {
@@ -114,29 +209,31 @@ struct BookmarksView: View {
                     }
                 }
                 .padding(FloatSpacing.md)
+                .animation(.easeInOut(duration: 0.25), value: viewModel.filteredDeals.count)
             }
         }
     }
-    
+
+    // MARK: - Venues View
+
     @ViewBuilder
     private var venuesView: some View {
         if viewModel.savedVenues.isEmpty {
             VStack(spacing: FloatSpacing.lg) {
+                Spacer()
                 Image(systemName: "location.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(FloatColors.primary)
-                
+                    .font(.system(size: 52))
+                    .foregroundStyle(FloatColors.primary.opacity(0.6))
                 Text("No Saved Venues")
                     .font(FloatFont.headline())
-                    .foregroundStyle(FloatColors.textPrimary)
-                
-                Text("Save your favorite venues to quickly access their deals")
+                    .foregroundStyle(FloatColors.adaptiveTextPrimary)
+                Text("Save your favorite venues to get notified of new deals")
                     .font(FloatFont.body())
-                    .foregroundStyle(FloatColors.textSecondary)
+                    .foregroundStyle(FloatColors.adaptiveTextSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, FloatSpacing.md)
+                    .padding(.horizontal, FloatSpacing.xl)
+                Spacer()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         } else {
             ScrollView {
                 LazyVStack(spacing: FloatSpacing.md) {
@@ -158,149 +255,188 @@ struct BookmarksView: View {
     }
 }
 
-struct SavedDealCard: View {
+// MARK: - EnhancedSavedDealCard
+
+struct EnhancedSavedDealCard: View {
     let deal: Deal
     let onRemove: () -> Void
-    
+
     @State private var showingRemoveConfirm = false
-    
+    @State private var showShareSheet = false
+
+    private var isExpiringSoon: Bool {
+        guard let expiresAt = deal.expiresAt else { return false }
+        return expiresAt.timeIntervalSinceNow < 7200
+    }
+
     var body: some View {
         FloatCard {
             VStack(alignment: .leading, spacing: FloatSpacing.md) {
                 HStack(alignment: .top, spacing: FloatSpacing.md) {
-                    VStack(alignment: .leading, spacing: FloatSpacing.sm) {
-                        Text(deal.title)
-                            .font(FloatFont.headline())
-                            .foregroundStyle(FloatColors.textPrimary)
-                        
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(deal.categoryColor.opacity(0.15))
+                            .frame(width: 48, height: 48)
+                        Image(systemName: "tag.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(deal.categoryColor)
+                    }
+                    .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: FloatSpacing.xs) {
+                        HStack(spacing: FloatSpacing.xs) {
+                            Text(deal.title)
+                                .font(FloatFont.headline())
+                                .foregroundStyle(FloatColors.adaptiveTextPrimary)
+                                .lineLimit(1)
+                            if isExpiringSoon {
+                                Text("SOON")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(FloatColors.warning)
+                                    .foregroundStyle(.white)
+                                    .cornerRadius(4)
+                            }
+                        }
+
                         if let venueName = deal.venueName {
                             Text(venueName)
                                 .font(FloatFont.callout())
-                                .foregroundStyle(FloatColors.textSecondary)
+                                .foregroundStyle(FloatColors.adaptiveTextSecondary)
                         }
-                        
-                        if let description = deal.description {
-                            Text(description)
-                                .font(FloatFont.callout())
-                                .foregroundStyle(FloatColors.textSecondary)
-                                .lineLimit(2)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    VStack(alignment: .trailing, spacing: FloatSpacing.sm) {
-                        FloatBadge(text: deal.category.uppercased())
-                        
-                        if let expiresAt = deal.expiresAt {
-                            Text(expiresAt.formatted(date: .abbreviated, time: .omitted))
-                                .font(FloatFont.caption2())
-                                .foregroundStyle(FloatColors.warning)
+
+                        HStack(spacing: FloatSpacing.sm) {
+                            Text(deal.discountDisplay)
+                                .font(FloatFont.caption(.semibold))
+                                .foregroundStyle(deal.categoryColor)
+
+                            if let expiresAt = deal.expiresAt {
+                                Text("·").foregroundStyle(FloatColors.adaptiveTextSecondary)
+                                HStack(spacing: 2) {
+                                    Image(systemName: "clock").font(.caption2)
+                                    Text(expiresAt, style: .relative)
+                                }
+                                .font(FloatFont.caption())
+                                .foregroundStyle(isExpiringSoon ? FloatColors.warning : FloatColors.adaptiveTextSecondary)
+                            }
                         }
                     }
                 }
-                
-                Divider()
-                    .background(FloatColors.textSecondary.opacity(0.2))
-                
-                HStack(spacing: FloatSpacing.md) {
-                    Button(action: { showingRemoveConfirm = true }) {
+
+                Divider().background(FloatColors.adaptiveSeparator)
+
+                HStack(spacing: FloatSpacing.lg) {
+                    Button {
+                        showShareSheet = true
+                    } label: {
                         HStack(spacing: FloatSpacing.xs) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 14))
-                            Text("Remove")
-                                .font(FloatFont.callout())
+                            Image(systemName: "square.and.arrow.up").font(.system(size: 13))
+                            Text("Share")
                         }
+                        .font(FloatFont.caption(.semibold))
+                        .foregroundStyle(FloatColors.primary)
+                    }
+                    .accessibilityLabel("Share \(deal.title)")
+
+                    Spacer()
+
+                    Button { showingRemoveConfirm = true } label: {
+                        HStack(spacing: FloatSpacing.xs) {
+                            Image(systemName: "bookmark.slash").font(.system(size: 13))
+                            Text("Remove")
+                        }
+                        .font(FloatFont.caption(.semibold))
                         .foregroundStyle(FloatColors.error)
                     }
-                    
-                    Spacer()
-                    
-                    Image(systemName: "bookmark.fill")
-                        .foregroundStyle(FloatColors.primary)
+                    .accessibilityLabel("Remove \(deal.title) bookmark")
                 }
             }
         }
-        .confirmationDialog(
-            "Remove Bookmark?",
-            isPresented: $showingRemoveConfirm,
-            actions: {
-                Button("Remove", role: .destructive) {
-                    onRemove()
-                }
-            },
-            message: {
-                Text("Are you sure you want to remove this deal from your bookmarks?")
+        .confirmationDialog("Remove Bookmark?", isPresented: $showingRemoveConfirm) {
+            Button("Remove", role: .destructive) { onRemove() }
+        } message: {
+            Text("Remove \"\(deal.title)\" from saved deals?")
+        }
+        .contextMenu {
+            Button { } label: {
+                Label("View Venue", systemImage: "building.2.fill")
             }
-        )
+            Button { showShareSheet = true } label: {
+                Label("Share Deal", systemImage: "square.and.arrow.up")
+            }
+            Button(role: .destructive) { showingRemoveConfirm = true } label: {
+                Label("Remove Bookmark", systemImage: "bookmark.slash")
+            }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            ShareSheet(items: ["\(deal.title) — \(deal.discountDisplay) at \(deal.venueName ?? "Unknown")"])
+                .presentationDetents([.medium])
+        }
     }
 }
+
+// MARK: - SavedVenueCard
 
 struct SavedVenueCard: View {
     let venue: Venue
     let onRemove: () -> Void
-    
+
     @State private var showingRemoveConfirm = false
-    
+
     var body: some View {
         FloatCard {
             VStack(alignment: .leading, spacing: FloatSpacing.md) {
                 HStack(alignment: .top, spacing: FloatSpacing.md) {
-                    VStack(alignment: .leading, spacing: FloatSpacing.sm) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(FloatColors.accent.opacity(0.15))
+                            .frame(width: 48, height: 48)
+                        Image(systemName: "building.2.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(FloatColors.accent)
+                    }
+                    .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: FloatSpacing.xs) {
                         Text(venue.name)
                             .font(FloatFont.headline())
-                            .foregroundStyle(FloatColors.textPrimary)
-                        
-                        Text(venue.address)
-                            .font(FloatFont.callout())
-                            .foregroundStyle(FloatColors.textSecondary)
-                    }
-                    
-                    Spacer()
-                    
-                    VStack(alignment: .trailing, spacing: FloatSpacing.xs) {
-                        HStack(spacing: FloatSpacing.xs) {
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(FloatColors.warning)
-                            
-                            Text(String(format: "%.1f", venue.rating))
+                            .foregroundStyle(FloatColors.adaptiveTextPrimary)
+                        if let address = venue.address {
+                            Text(address)
                                 .font(FloatFont.callout())
-                                .foregroundStyle(FloatColors.textPrimary)
+                                .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                                .lineLimit(1)
                         }
-                        
-                        Image(systemName: "bookmark.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(FloatColors.primary)
+                        HStack(spacing: 2) {
+                            Image(systemName: "star.fill").font(.caption2).foregroundStyle(FloatColors.warning)
+                            Text(String(format: "%.1f", venue.rating))
+                                .font(FloatFont.caption())
+                                .foregroundStyle(FloatColors.adaptiveTextPrimary)
+                        }
                     }
+
+                    Spacer()
+                    Image(systemName: "bookmark.fill").foregroundStyle(FloatColors.primary)
                 }
-                
-                Divider()
-                    .background(FloatColors.textSecondary.opacity(0.2))
-                
-                Button(action: { showingRemoveConfirm = true }) {
+
+                Divider().background(FloatColors.adaptiveSeparator)
+
+                Button { showingRemoveConfirm = true } label: {
                     HStack(spacing: FloatSpacing.xs) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 14))
+                        Image(systemName: "bookmark.slash").font(.system(size: 13))
                         Text("Remove")
-                            .font(FloatFont.callout())
                     }
+                    .font(FloatFont.caption(.semibold))
                     .foregroundStyle(FloatColors.error)
                 }
             }
         }
-        .confirmationDialog(
-            "Remove Bookmark?",
-            isPresented: $showingRemoveConfirm,
-            actions: {
-                Button("Remove", role: .destructive) {
-                    onRemove()
-                }
-            },
-            message: {
-                Text("Are you sure you want to remove this venue from your bookmarks?")
-            }
-        )
+        .confirmationDialog("Remove Venue?", isPresented: $showingRemoveConfirm) {
+            Button("Remove", role: .destructive) { onRemove() }
+        } message: {
+            Text("Remove \"\(venue.name)\" from saved venues?")
+        }
     }
 }
 
