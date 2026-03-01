@@ -57,6 +57,7 @@ struct OnboardingStep1View: View {
             
             VStack(spacing: FloatSpacing.sm) {
                 Text("Deals Near You").font(FloatFont.title())
+                // swiftlint:disable:next line_length
                 Text("Float uses your location to surface live deals at bars and restaurants within walking distance. We never share your location.")
                     .font(FloatFont.body())
                     .foregroundStyle(FloatColors.textSecondary)

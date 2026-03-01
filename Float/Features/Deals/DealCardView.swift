@@ -3,6 +3,12 @@ import SwiftUI
 struct DealCardView: View {
     let deal: Deal
     @State private var isBookmarked = false
+    @StateObject private var ratingViewModel: DealRatingViewModel
+
+    init(deal: Deal) {
+        self.deal = deal
+        _ratingViewModel = StateObject(wrappedValue: DealRatingViewModel(dealId: deal.id))
+    }
 
     var body: some View {
         FloatCard {
@@ -30,6 +36,14 @@ struct DealCardView: View {
                             .foregroundStyle(FloatColors.adaptiveTextSecondary)
                             .accessibilityLabel("\(formatDistance(distance))")
                     }
+                }
+
+                // Rating display
+                if ratingViewModel.hasLoaded {
+                    RatingDisplayView(
+                        averageRating: ratingViewModel.averageRating,
+                        reviewCount: ratingViewModel.reviewCount
+                    )
                 }
 
                 // Discount display
@@ -108,6 +122,9 @@ struct DealCardView: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(accessibilityDescription)
         .accessibilityAddTraits(.isButton)
+        .task {
+            await ratingViewModel.loadAverageRating()
+        }
     }
 
     // MARK: - Computed Helpers

@@ -111,7 +111,14 @@ struct SettingsView: View {
                 .onChange(of: viewModel.useMetric) { _ in viewModel.save() }
 
                 VStack(alignment: .leading, spacing: FloatSpacing.xs) {
-                    settingsRowContent(icon: "location.circle.fill", title: "Default Radius: \(String(format: viewModel.defaultRadiusMiles < 1 ? "%.2g" : "%.0f", viewModel.defaultRadiusMiles)) \(viewModel.useMetric ? "km" : "mi")", color: FloatColors.foodColor)
+                    let radiusFmt = viewModel.defaultRadiusMiles < 1 ? "%.2g" : "%.0f"
+                    let radiusStr = String(format: radiusFmt, viewModel.defaultRadiusMiles)
+                    let unit = viewModel.useMetric ? "km" : "mi"
+                    settingsRowContent(
+                        icon: "location.circle.fill",
+                        title: "Default Radius: \(radiusStr) \(unit)",
+                        color: FloatColors.foodColor
+                    )
                     Slider(value: $viewModel.defaultRadiusMiles, in: 0.25...10, step: 0.25)
                         .tint(FloatColors.primary)
                         .padding(.top, FloatSpacing.xs)
@@ -141,7 +148,12 @@ struct SettingsView: View {
 
             // MARK: About
             Section("About") {
-                settingsRow(icon: "info.circle.fill", title: "Version", trailing: "\(viewModel.appVersion) (\(viewModel.buildNumber))", color: FloatColors.adaptiveTextSecondary) { }
+                settingsRow(
+                    icon: "info.circle.fill",
+                    title: "Version",
+                    trailing: "\(viewModel.appVersion) (\(viewModel.buildNumber))",
+                    color: FloatColors.adaptiveTextSecondary
+                ) { }
 
                 Button {
                     if let url = URL(string: "itms-apps://itunes.apple.com/app/id0000000000?action=write-review") {
@@ -183,6 +195,7 @@ struct SettingsView: View {
                             .foregroundStyle(FloatColors.error)
                     }
                 }
+            // swiftlint:disable:next multiple_closures_with_trailing_closure
             } header: {
                 Text("Danger Zone")
             } footer: {
@@ -213,12 +226,12 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.large)
         .onAppear { viewModel.load() }
         .trackScreen("Settings")
-        .confirmationDialog("Sign Out", isPresented: $showSignOutConfirm) {
+        .confirmationDialog("Sign Out", isPresented: $showSignOutConfirm, actions: {
             Button("Sign Out", role: .destructive) { /* authService.signOut() */ }
-        } message: { Text("Are you sure you want to sign out?") }
-        .confirmationDialog("Delete Account", isPresented: $showDeleteConfirm) {
+        }, message: { Text("Are you sure you want to sign out?") })
+        .confirmationDialog("Delete Account", isPresented: $showDeleteConfirm, actions: {
             Button("Delete Account", role: .destructive) { }
-        } message: { Text("This is permanent and cannot be undone.") }
+        }, message: { Text("This is permanent and cannot be undone.") })
         .sheet(isPresented: $showPrivacyPolicy) {
             SafariView(url: URL(string: "https://float.app/privacy")!)
         }

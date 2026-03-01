@@ -74,7 +74,11 @@ struct DealFiltersView: View {
                                         .font(FloatFont.caption(.semibold))
                                         .padding(.horizontal, FloatSpacing.sm)
                                         .padding(.vertical, 8)
-                                        .background(draft.maxDistanceMiles == miles ? FloatColors.primary : FloatColors.adaptiveCardBackground)
+                                        .background(
+                                            draft.maxDistanceMiles == miles
+                                                ? FloatColors.primary
+                                                : FloatColors.adaptiveCardBackground
+                                        )
                                         .foregroundStyle(draft.maxDistanceMiles == miles ? .white : FloatColors.adaptiveTextPrimary)
                                         .cornerRadius(8)
                                 }
@@ -98,7 +102,10 @@ struct DealFiltersView: View {
                     Divider().background(FloatColors.adaptiveSeparator)
 
                     // Venue rating
-                    filterSection("Minimum Venue Rating", detail: draft.minRating > 0 ? "\(String(format: "%.1f", draft.minRating))★+" : "Any") {
+                    let ratingDetail = draft.minRating > 0
+                        ? "\(String(format: "%.1f", draft.minRating))★+"
+                        : "Any"
+                    filterSection("Minimum Venue Rating", detail: ratingDetail) {
                         HStack(spacing: FloatSpacing.sm) {
                             ForEach(ratingOptions, id: \.self) { rating in
                                 Button(action: { draft.minRating = rating }) {

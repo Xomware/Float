@@ -4,6 +4,7 @@ struct RedemptionView: View {
     let deal: Deal
     @StateObject private var viewModel = RedemptionViewModel()
     @State private var userId: UUID = UUID()
+    @State private var showRatingPrompt = false
     @Environment(\.dismiss) var dismiss
     
     var body: some View {
@@ -102,6 +103,10 @@ struct RedemptionView: View {
                                 shareRedemption()
                             }
                             
+                            FloatButton("Rate This Deal", icon: "star.fill", style: .secondary) {
+                                showRatingPrompt = true
+                            }
+                            
                             FloatButton("Close", style: .secondary) {
                                 dismiss()
                             }
@@ -141,6 +146,14 @@ struct RedemptionView: View {
             }
             .navigationTitle("Redeem Deal")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showRatingPrompt) {
+                RatingPromptView(
+                    viewModel: DealRatingViewModel(dealId: deal.id),
+                    userId: userId,
+                    dealTitle: deal.title
+                )
+                .presentationDetents([.medium, .large])
+            }
             .onAppear {
                 Task {
                     await viewModel.redeemDeal(deal, userId: userId)
