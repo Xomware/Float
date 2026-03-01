@@ -10,6 +10,7 @@ final class SettingsViewModel: ObservableObject {
     @Published var useMetric = false
     @Published var defaultRadiusMiles: Double = 2.0
     @Published var isPrivateProfile = false
+    @Published var activityVisibility: ActivityVisibility = .friends
     @Published var appVersion = ""
     @Published var buildNumber = ""
 
@@ -35,6 +36,7 @@ final class SettingsViewModel: ObservableObject {
         defaultRadiusMiles = defaults.double(forKey: "default_radius_miles").clamped(to: 0.25...10)
         if defaultRadiusMiles == 0 { defaultRadiusMiles = 2.0 }
         isPrivateProfile = defaults.bool(forKey: "is_private_profile")
+        activityVisibility = ActivityVisibility(rawValue: defaults.string(forKey: "activity_visibility") ?? "friends") ?? .friends
         let rawMode = defaults.string(forKey: "appearance_mode") ?? "System"
         prefersDarkMode = AppearanceMode(rawValue: rawMode) ?? .system
 
@@ -48,6 +50,7 @@ final class SettingsViewModel: ObservableObject {
         defaults.set(useMetric, forKey: "use_metric")
         defaults.set(defaultRadiusMiles, forKey: "default_radius_miles")
         defaults.set(isPrivateProfile, forKey: "is_private_profile")
+        defaults.set(activityVisibility.rawValue, forKey: "activity_visibility")
         defaults.set(prefersDarkMode.rawValue, forKey: "appearance_mode")
     }
 }
@@ -87,6 +90,16 @@ struct SettingsView: View {
                 }
                 .tint(FloatColors.primary)
                 .onChange(of: viewModel.isPrivateProfile) { _ in viewModel.save() }
+
+                Picker(selection: $viewModel.activityVisibility) {
+                    ForEach(ActivityVisibility.allCases, id: \.self) { v in
+                        Label(v.displayName, systemImage: v.icon).tag(v)
+                    }
+                } label: {
+                    settingsRowContent(icon: "eye.fill", title: "Activity Visibility", color: .mint)
+                }
+                .tint(FloatColors.primary)
+                .onChange(of: viewModel.activityVisibility) { _ in viewModel.save() }
             }
 
             // MARK: Appearance
