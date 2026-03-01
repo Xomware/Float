@@ -3,7 +3,7 @@ import SwiftUI
 struct OnboardingView: View {
     @EnvironmentObject private var authService: AuthService
     @StateObject private var locationService = LocationService()
-    @StateObject private var notificationService = NotificationService()
+    private var notificationService: NotificationService { NotificationService.shared }
     @State private var currentStep = 0
     
     var body: some View {

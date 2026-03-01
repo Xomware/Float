@@ -177,6 +177,7 @@ extension Font {
         title: "2-for-1 Margaritas",
         description: "Buy one margarita, get one free tonight only",
         category: "drink",
+        venueId: UUID(),
         venueName: "El Paso Bar",
         expiresAt: Date().addingTimeInterval(3600),
         discountType: "bogo",

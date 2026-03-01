@@ -2,7 +2,7 @@ import SwiftUI
 import CoreLocation
 
 // MARK: - Models
-struct Deal: Identifiable {
+struct Deal: Identifiable, Codable {
     let id: UUID
     var title: String
     var description: String?
