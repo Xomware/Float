@@ -2,6 +2,9 @@ import SwiftUI
 import MapKit
 import Combine
 import CoreLocation
+import OSLog
+
+private let logger = Logger(subsystem: "com.xomware.float", category: "Map")
 
 struct DealPin: Identifiable {
     let id: UUID
@@ -74,13 +77,13 @@ class MapViewModel: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
-        Logger.deals.info("Loading nearby deals from map")
+        logger.info("Loading nearby deals from map")
         
         // TODO: Call Supabase nearby_deals RPC with user coordinates
         // For now, generate mock data
         
         guard let userLocation = locationService.currentLocation?.coordinate else {
-            Logger.deals.warning("No user location available")
+            logger.warning("No user location available")
             return
         }
         
@@ -138,7 +141,10 @@ class MapViewModel: ObservableObject {
     
     deinit {
         locationTask?.cancel()
-        locationService.stopUpdating()
+        let service = locationService
+        Task { @MainActor in
+            service.stopUpdating()
+        }
     }
     
     // MARK: - Mock Data
