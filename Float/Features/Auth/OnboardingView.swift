@@ -111,7 +111,7 @@ struct OnboardingStep2View: View {
             VStack(spacing: FloatSpacing.sm) {
                 FloatButton("Turn On Notifications", icon: "bell.fill") {
                     Task {
-                        await notificationService.requestPermission()
+                        await notificationService.requestPermissionAndRegister()
                         onNext()
                     }
                 }
