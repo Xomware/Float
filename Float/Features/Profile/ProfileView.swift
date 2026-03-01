@@ -295,24 +295,24 @@ struct ProfileView: View {
             }
 
             VStack(spacing: FloatSpacing.sm) {
-                ForEach(viewModel.recentRedemptions.prefix(5)) { r in
+                ForEach(viewModel.recentRedemptions.prefix(5)) { redemption in
                     HStack(spacing: FloatSpacing.md) {
                         ZStack {
                             Circle()
-                                .fill(categoryColor(r.category).opacity(0.15))
+                                .fill(categoryColor(redemption.category).opacity(0.15))
                                 .frame(width: 36, height: 36)
-                            Image(systemName: categoryIcon(r.category))
+                            Image(systemName: categoryIcon(redemption.category))
                                 .font(.system(size: 14))
-                                .foregroundStyle(categoryColor(r.category))
+                                .foregroundStyle(categoryColor(redemption.category))
                         }
                         .accessibilityHidden(true)
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(r.dealTitle)
+                            Text(redemption.dealTitle)
                                 .font(FloatFont.body())
                                 .foregroundStyle(FloatColors.adaptiveTextPrimary)
                                 .lineLimit(1)
-                            Text(r.venueName)
+                            Text(redemption.venueName)
                                 .font(FloatFont.caption())
                                 .foregroundStyle(FloatColors.adaptiveTextSecondary)
                         }
@@ -320,17 +320,17 @@ struct ProfileView: View {
                         Spacer()
 
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text("-$\(String(format: "%.2f", r.savings))")
+                            Text("-$\(String(format: "%.2f", redemption.savings))")
                                 .font(FloatFont.caption(.semibold))
                                 .foregroundStyle(FloatColors.success)
-                            Text(r.date, style: .relative)
+                            Text(redemption.date, style: .relative)
                                 .font(.caption2)
                                 .foregroundStyle(FloatColors.adaptiveTextSecondary)
                         }
                     }
                     .padding(.vertical, FloatSpacing.xs)
 
-                    if r.id != viewModel.recentRedemptions.prefix(5).last?.id {
+                    if redemption.id != viewModel.recentRedemptions.prefix(5).last?.id {
                         Divider().background(FloatColors.adaptiveSeparator)
                     }
                 }
