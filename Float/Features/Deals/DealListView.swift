@@ -46,6 +46,38 @@ struct DealListView: View {
                         }
                         .accessibilityLabel("Sort deals")
 
+                        // Filter button
+                        Button { showFilters = true } label: {
+                            HStack(spacing: FloatSpacing.xs) {
+                                Image(systemName: "slider.horizontal.3")
+                                Text("Filters")
+                                if filterState.isActive {
+                                    Text("\(filterState.activeCount)")
+                                        .font(.caption2.bold())
+                                        .padding(4)
+                                        .background(FloatColors.primary)
+                                        .foregroundStyle(.white)
+                                        .clipShape(Circle())
+                                }
+                            }
+                            .font(FloatFont.caption(.semibold))
+                            .padding(.horizontal, FloatSpacing.sm)
+                            .padding(.vertical, 6)
+                            .background(filterState.isActive
+                                ? FloatColors.primary.opacity(0.15)
+                                : FloatColors.adaptiveCardBackground)
+                            .foregroundStyle(filterState.isActive
+                                ? FloatColors.primary
+                                : FloatColors.adaptiveTextPrimary)
+                            .cornerRadius(FloatSpacing.badgeRadius)
+                        }
+                        .accessibilityLabel("Filter deals\(filterState.isActive ? ", \(filterState.activeCount) active" : "")")
+                        .sheet(isPresented: $showFilters) {
+                            DealFiltersView(filterState: $filterState)
+                                .presentationDetents([.medium, .large])
+                                .presentationDragIndicator(.visible)
+                        }
+
                         // Filters button
                         Button {
                             showFilters = true
