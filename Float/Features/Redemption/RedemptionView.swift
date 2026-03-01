@@ -27,8 +27,8 @@ struct RedemptionView: View {
                             }
                             
                             HStack(spacing: FloatSpacing.md) {
-                                FloatBadge(text: deal.category.uppercased())
-                                FloatBadge(text: deal.discountType.uppercased(), style: .secondary)
+                                FloatBadge(deal.category.uppercased())
+                                FloatBadge(deal.discountType.uppercased(), color: FloatColors.secondary)
                                 Spacer()
                             }
                         }
