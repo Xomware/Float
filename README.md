@@ -4,6 +4,40 @@
 
 Float surfaces live happy hour specials, limited-time drink/food deals, and venue promos on a map. Users discover deals near them in real-time; venues push offers through a merchant portal.
 
+## Table of Contents
+
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Development](#development)
+- [CI/CD & Deployment](#cicd--deployment)
+- [License](#license)
+
+## Features
+
+### Core Discovery
+- 🗺️ **Real-time Map Discovery** — Find deals near you with MapKit + CoreLocation
+- 🔍 **Advanced Deal Filters** — Filter by deal type, venue, distance, and more
+- 🏢 **Venue Search** — Search for specific restaurants & bars
+- 💾 **Bookmarks** — Save favorite deals for later
+
+### User Experience
+- 👤 **Full User Profile** — Avatar, preferences, stats, and deal history
+- ⚙️ **Complete Settings** — Customize app experience, manage preferences
+- 🔔 **Notification Preferences** — Control push notifications and deal alerts
+- 🌓 **Dark Mode Support** — Optimized light & dark themes
+
+### Engagement Features
+- 📊 **In-app Analytics Dashboard** — Track viewed/bookmarked/redeemed deals with Swift Charts
+- 🔗 **Social Sharing** — Share deals with friends via iMessage, Email, etc.
+- 🔐 **Secure Redemption Flow** — Redeem deals at venues with authentication
+
+### Authentication & Privacy
+- 🍎 Sign in with Apple
+- 🔵 Google OAuth
+- 🔒 Row-Level Security (RLS) on all backend queries
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -38,18 +72,81 @@ Float/
 
 ## Getting Started
 
-1. Clone the repo
-2. `cp .env.example .env` and fill in Supabase + Firebase credentials
-3. Open `Float.xcodeproj` in Xcode 15+
-4. Run on iOS 17+ simulator or device
+### Prerequisites
+- **Xcode 15+** (with iOS 17+ SDK)
+- **macOS 13+**
+- **Supabase account** (for backend credentials)
+- **Apple Developer account** (for TestFlight, push notifications)
 
-## Sprint 1 — Foundation
+### Local Setup
 
+1. **Clone the repo**
+   ```bash
+   git clone https://github.com/Xomware/Float.git
+   cd Float
+   ```
+
+2. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Fill in Supabase URL, API key, and other credentials
+   ```
+
+3. **Install dependencies**
+   ```bash
+   bundle install  # Fastlane gems
+   pod install     # If using CocoaPods
+   ```
+
+4. **Open in Xcode**
+   ```bash
+   open Float.xcodeproj
+   ```
+
+5. **Run on simulator**
+   - Select target device (iPhone 15 Pro recommended)
+   - Press `Cmd + R` to build and run
+
+### Fastlane Commands
+
+```bash
+# Run unit tests
+bundle exec fastlane test
+
+# Lint code
+bundle exec fastlane lint
+
+# Build locally (no TestFlight)
+bundle exec fastlane build_only
+
+# Sync code signing certificates
+bundle exec fastlane certs
+```
+
+## Development Roadmap
+
+### Sprint 1 — Foundation ✅
 - [x] #1 Project scaffolding (SwiftUI architecture, design system)
 - [x] #2 Supabase backend (schema, PostGIS, RLS, migrations)
 - [x] #3 Auth (Sign in with Apple, Google OAuth, onboarding)
+- [x] Core MapKit discovery, deal list, venue profiles
 
-## CI/CD — TestFlight Pipeline
+### Sprint 2 — User Experience & Engagement ✅
+- [x] #28 Enhanced Bookmarks — Save and manage favorite deals
+- [x] #27 Full User Profile — Avatar, preferences, deal statistics
+- [x] #25, #26 Advanced Deal Filters + Venue Search — Refined discovery
+- [x] #32 Complete Settings Page — Manage app preferences
+- [x] #31 Social Sharing — Share deals via iMessage, Email, etc.
+- [x] #30 In-app Analytics Dashboard — View stats with Swift Charts
+- [x] #29 Notification Preferences — Control push alerts and deal notifications
+
+### Future Sprints (Planned)
+- Sprint 3: Merchant Portal Enhancements
+- Sprint 4: Push Notifications (APNs)
+- Sprint 5: Web Dashboard for Venues
+- Sprint 6: Advanced Analytics & Reporting
+
+## CI/CD & Deployment — TestFlight Pipeline
 
 ### Overview
 
