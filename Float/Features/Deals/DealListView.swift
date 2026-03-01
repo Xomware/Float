@@ -3,6 +3,8 @@ import SwiftUI
 struct DealListView: View {
     @StateObject private var viewModel = DealViewModel()
     @State private var showSortMenu = false
+    @State private var filterState = DealFilterState()
+    @State private var showFilters = false
 
     var body: some View {
         NavigationStack {
@@ -43,6 +45,36 @@ struct DealListView: View {
                             .cornerRadius(FloatSpacing.badgeRadius)
                         }
                         .accessibilityLabel("Sort deals")
+
+                        // Filters button
+                        Button {
+                            showFilters = true
+                        } label: {
+                            HStack(spacing: FloatSpacing.xs) {
+                                Image(systemName: "slider.horizontal.3")
+                                Text("Filters")
+                                if filterState.isActive {
+                                    Text("\(filterState.activeCount)")
+                                        .font(.caption2.bold())
+                                        .padding(4)
+                                        .background(FloatColors.primary)
+                                        .foregroundStyle(.white)
+                                        .clipShape(Circle())
+                                }
+                            }
+                            .font(FloatFont.caption(.semibold))
+                            .padding(.horizontal, FloatSpacing.sm)
+                            .padding(.vertical, 6)
+                            .background(filterState.isActive ? FloatColors.primary.opacity(0.15) : FloatColors.adaptiveCardBackground)
+                            .foregroundStyle(filterState.isActive ? FloatColors.primary : FloatColors.adaptiveTextPrimary)
+                            .cornerRadius(FloatSpacing.badgeRadius)
+                        }
+                        .accessibilityLabel("Filter deals\(filterState.isActive ? ", \(filterState.activeCount) active" : "")")
+                        .sheet(isPresented: $showFilters) {
+                            DealFiltersView(filterState: $filterState)
+                                .presentationDetents([.medium, .large])
+                                .presentationDragIndicator(.visible)
+                        }
                     }
                     .padding(FloatSpacing.md)
                 }
@@ -163,7 +195,7 @@ struct FilterChip: View {
     }
 }
 
-// MARK: - Deal Detail View (unchanged from original, keep here)
+// MARK: - Deal Detail View
 struct DealDetailView: View {
     let deal: Deal
     @State private var isSaved = false
@@ -308,20 +340,6 @@ struct DealDetailView: View {
                 // Handle get deal action
             }
             .padding(FloatSpacing.md)
-        }
-    }
-}
-
-// MARK: - Search View
-struct SearchView: View {
-    @State private var query = ""
-    var body: some View {
-        NavigationStack {
-            Text("Search coming soon")
-                .foregroundStyle(FloatColors.adaptiveTextSecondary)
-                .floatScreenBackground()
-                .navigationTitle("Search")
-                .searchable(text: $query)
         }
     }
 }
