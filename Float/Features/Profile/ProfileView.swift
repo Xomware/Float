@@ -1,3 +1,6 @@
+// ProfileView.swift
+// Float
+
 import SwiftUI
 
 // MARK: - ProfileViewModel
@@ -50,7 +53,7 @@ final class ProfileViewModel: ObservableObject {
             MockRedemption(dealTitle: "30% Off Draft Beers", venueName: "Happy Hour Haven", savings: 6.00,
                            date: Date().addingTimeInterval(-345600), category: "drink"),
             MockRedemption(dealTitle: "Flash: $3 Shots", venueName: "Late Night Eats", savings: 5.00,
-                           date: Date().addingTimeInterval(-518400), category: "flash"),
+                           date: Date().addingTimeInterval(-518400), category: "flash")
         ]
         totalSaved = recentRedemptions.reduce(0) { $0 + $1.savings }
         editName = profile?.displayName ?? ""
@@ -59,15 +62,15 @@ final class ProfileViewModel: ObservableObject {
     }
 
     func saveEdits() async {
-        guard let p = profile else { return }
+        guard let current = profile else { return }
         profile = UserProfile(
-            id: p.id, username: p.username,
-            displayName: editName.isEmpty ? p.displayName : editName,
-            avatarUrl: p.avatarUrl, bio: editBio,
-            locationCity: p.locationCity, locationState: p.locationState,
-            totalRedemptions: p.totalRedemptions, totalSavings: p.totalSavings,
-            notificationPrefs: p.notificationPrefs, isMerchant: p.isMerchant,
-            createdAt: p.createdAt
+            id: current.id, username: current.username,
+            displayName: editName.isEmpty ? current.displayName : editName,
+            avatarUrl: current.avatarUrl, bio: editBio,
+            locationCity: current.locationCity, locationState: current.locationState,
+            totalRedemptions: current.totalRedemptions, totalSavings: current.totalSavings,
+            notificationPrefs: current.notificationPrefs, isMerchant: current.isMerchant,
+            createdAt: current.createdAt
         )
         isEditing = false
     }

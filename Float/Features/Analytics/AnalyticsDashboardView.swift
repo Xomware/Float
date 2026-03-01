@@ -1,3 +1,6 @@
+// AnalyticsDashboardView.swift
+// Float
+
 import SwiftUI
 import Charts
 
@@ -48,18 +51,18 @@ struct RedemptionStats {
                 .init(week: "Feb 3", count: 4, savings: 31.00),
                 .init(week: "Feb 10", count: 1, savings: 8.50),
                 .init(week: "Feb 17", count: 5, savings: 42.75),
-                .init(week: "Feb 24", count: 3, savings: 25.00),
+                .init(week: "Feb 24", count: 3, savings: 25.00)
             ],
             categoryBreakdown: [
                 .init(category: "Drinks", count: 18, color: FloatColors.drinkColor),
                 .init(category: "Food", count: 10, color: FloatColors.foodColor),
                 .init(category: "Combo", count: 4, color: FloatColors.comboColor),
-                .init(category: "Flash", count: 2, color: FloatColors.eventColor),
+                .init(category: "Flash", count: 2, color: FloatColors.eventColor)
             ],
             topVenues: [
                 .init(venueName: "The Daily Brew", visits: 8, savings: 54.50),
                 .init(venueName: "Happy Hour Haven", visits: 6, savings: 38.00),
-                .init(venueName: "Cocktail Corner", visits: 5, savings: 29.75),
+                .init(venueName: "Cocktail Corner", visits: 5, savings: 29.75)
             ]
         )
     }

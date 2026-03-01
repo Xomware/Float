@@ -1,3 +1,6 @@
+// AuthView.swift
+// Float
+
 import SwiftUI
 
 /// Auth gate — routes to onboarding, main app, or sign-in based on auth state

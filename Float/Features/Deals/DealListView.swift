@@ -1,3 +1,6 @@
+// DealListView.swift
+// Float
+
 import SwiftUI
 
 struct DealListView: View {
@@ -145,14 +148,12 @@ struct DealListView: View {
                         // Skeleton loading
                         DealListSkeletonView(count: 4)
                             .transition(.floatFade)
-
                     } else if let error = viewModel.loadError, viewModel.filteredDeals.isEmpty {
                         // Full-screen error state
                         ErrorStateView.loadError(what: "deals") {
                             Task { await viewModel.loadDeals() }
                         }
                         .transition(.floatFade)
-
                     } else if viewModel.filteredDeals.isEmpty {
                         // Empty state
                         EmptyStateView(
@@ -161,7 +162,6 @@ struct DealListView: View {
                             }
                         )
                         .transition(.floatFade)
-
                     } else {
                         // Deal list with animated cards
                         ScrollView {

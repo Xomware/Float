@@ -1,3 +1,6 @@
+// SkeletonView.swift
+// Float
+
 import SwiftUI
 
 // MARK: - Shimmer Animation
@@ -11,7 +14,7 @@ struct ShimmerModifier: ViewModifier {
                     gradient: Gradient(stops: [
                         .init(color: .clear, location: max(0, phase - 0.3)),
                         .init(color: Color.white.opacity(0.18), location: phase),
-                        .init(color: .clear, location: min(1, phase + 0.3)),
+                        .init(color: .clear, location: min(1, phase + 0.3))
                     ]),
                     startPoint: .leading,
                     endPoint: .trailing

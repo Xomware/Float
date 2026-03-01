@@ -1,3 +1,6 @@
+// UserProfile.swift
+// Float
+
 import Foundation
 
 struct UserProfile: Codable, Identifiable {

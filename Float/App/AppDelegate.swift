@@ -1,3 +1,6 @@
+// AppDelegate.swift
+// Float
+
 import UIKit
 import UserNotifications
 import BackgroundTasks
@@ -78,14 +81,16 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             forTaskWithIdentifier: BackgroundTaskID.geofenceRefresh,
             using: nil
         ) { task in
-            self.handleGeofenceRefresh(task: task as! BGAppRefreshTask)
+            guard let refreshTask = task as? BGAppRefreshTask else { return }
+            self.handleGeofenceRefresh(task: refreshTask)
         }
 
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: BackgroundTaskID.notificationSync,
             using: nil
         ) { task in
-            self.handleNotificationSync(task: task as! BGProcessingTask)
+            guard let processingTask = task as? BGProcessingTask else { return }
+            self.handleNotificationSync(task: processingTask)
         }
 
         logger.info("Background tasks registered")

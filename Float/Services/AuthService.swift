@@ -1,3 +1,6 @@
+// AuthService.swift
+// Float
+
 import SwiftUI
 import Supabase
 import AuthenticationServices
@@ -234,13 +237,18 @@ final class SignInWithAppleHelper: NSObject, ASAuthorizationControllerDelegate, 
         }
     }
     
+    // swiftlint:disable:next line_length
     nonisolated func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
         guard
             let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
             let tokenData = credential.identityToken,
             let idToken = String(data: tokenData, encoding: .utf8)
         else {
-            continuation?.resume(throwing: NSError(domain: "AppleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to get Apple ID token"]))
+            let error = NSError(
+                domain: "AppleSignIn", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to get Apple ID token"]
+            )
+            continuation?.resume(throwing: error)
             return
         }
         continuation?.resume(returning: AppleSignInResult(idToken: idToken, nonce: nonce))

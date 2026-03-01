@@ -1,3 +1,6 @@
+// DealCardAnimations.swift
+// Float
+
 import SwiftUI
 
 // MARK: - Animated Deal Card List Item

@@ -1,3 +1,6 @@
+// ShareDealView.swift
+// Float
+
 import SwiftUI
 
 // MARK: - ShareDealView

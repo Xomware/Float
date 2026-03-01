@@ -1,3 +1,6 @@
+// DealViewModel.swift
+// Float
+
 import SwiftUI
 import CoreLocation
 import OSLog
@@ -114,7 +117,7 @@ class DealViewModel: ObservableObject {
         logger.info("Loading deals page \(self.currentPage)")
         
         // Simulate loading with mock data for now
-        // TODO: Replace with actual Supabase fetch
+        // Placeholder: Replace with actual Supabase fetch
         let mockDeals = generateMockDeals(page: currentPage, pageSize: pageSize)
         
         if currentPage == 1 {
