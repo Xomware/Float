@@ -1,9 +1,7 @@
-import SwiftUI
+// ProfileViewModel.swift
+// Float
+//
+// ProfileViewModel has been consolidated into ProfileView.swift (Sprint 2 refactor).
+// This file is intentionally minimal.
 
-@MainActor
-class ProfileViewModel: ObservableObject {
-    @Published var displayName: String = ""
-    @Published var username: String = ""
-    @Published var totalRedemptions: Int = 0
-    @Published var totalSavings: Double = 0
-}
+import Foundation
