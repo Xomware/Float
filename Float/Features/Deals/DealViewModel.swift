@@ -46,6 +46,7 @@ struct Venue: Identifiable {
     var isOpenNow: Bool = true
     var closingTime: String?
     var isSaved: Bool = false
+    var rating: Double = 4.5
 }
 
 // MARK: - Sort Options

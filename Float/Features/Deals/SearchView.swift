@@ -1,388 +1,480 @@
 import SwiftUI
 
+// MARK: - VenueSearchViewModel
+
 @MainActor
-class SearchViewModel: ObservableObject {
-    @Published var searchQuery = ""
-    @Published var searchResults: [Deal] = []
+final class VenueSearchViewModel: ObservableObject {
+    @Published var query = ""
+    @Published var dealResults: [Deal] = []
     @Published var venueResults: [Venue] = []
+    @Published var isSearching = false
     @Published var recentSearches: [String] = []
-    @Published var isLoading = false
-    @Published var suggestedCategories = ["drink", "food", "combo", "happy_hour", "flash_deal"]
-    
+    @Published var hasSearched = false
+
     private var searchTask: Task<Void, Never>?
-    private let userDefaults = UserDefaults.standard
-    private let recentSearchesKey = "float_recent_searches"
-    
+
+    let trendingSearches = ["happy hour", "taco tuesday", "trivia night", "wine wednesday", "brunch deals"]
+
     init() {
         loadRecentSearches()
     }
-    
-    // MARK: - Search Logic
-    func performSearch(_ query: String) {
+
+    func performSearch() {
         searchTask?.cancel()
-        
-        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
-            searchResults = []
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else {
+            dealResults = []
             venueResults = []
+            hasSearched = false
             return
         }
-        
-        // Debounce search
+
         searchTask = Task {
-            try? await Task.sleep(for: .milliseconds(300))
-            
-            if !Task.isCancelled {
-                // Mock search - in production would query Supabase
-                let queryLower = query.lowercased()
-                
-                // Filter deals
-                self.searchResults = mockDeals.filter { deal in
-                    deal.title.lowercased().contains(queryLower) ||
-                    deal.description?.lowercased().contains(queryLower) ?? false ||
-                    deal.category.lowercased().contains(queryLower)
-                }
-                
-                // Filter venues
-                self.venueResults = mockVenues.filter { venue in
-                    venue.name.lowercased().contains(queryLower) ||
-                    venue.address.lowercased().contains(queryLower)
-                }
-                
-                // Add to recent searches
-                if !queryLower.isEmpty {
-                    addRecentSearch(query)
-                }
+            try? await Task.sleep(nanoseconds: 300_000_000) // 300ms debounce
+            guard !Task.isCancelled else { return }
+            isSearching = true
+            defer { isSearching = false }
+
+            let q = trimmed.lowercased()
+            dealResults = mockDeals.filter {
+                $0.title.lowercased().contains(q) ||
+                ($0.description?.lowercased().contains(q) ?? false) ||
+                ($0.venueName?.lowercased().contains(q) ?? false) ||
+                $0.category.lowercased().contains(q)
             }
+            venueResults = mockVenues.filter {
+                $0.name.lowercased().contains(q) ||
+                ($0.address?.lowercased().contains(q) ?? false)
+            }
+            hasSearched = true
+            AnalyticsService.shared.track(.searchQueried(query: query))
         }
     }
-    
-    // MARK: - Recent Searches
-    private func loadRecentSearches() {
-        if let data = userDefaults.data(forKey: recentSearchesKey),
-           let searches = try? JSONDecoder().decode([String].self, from: data) {
-            recentSearches = searches
-        }
+
+    func addRecentSearch(_ term: String) {
+        let t = term.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty else { return }
+        recentSearches.removeAll { $0 == t }
+        recentSearches.insert(t, at: 0)
+        if recentSearches.count > 10 { recentSearches = Array(recentSearches.prefix(10)) }
+        saveRecentSearches()
     }
-    
-    private func addRecentSearch(_ query: String) {
-        let trimmed = query.trimmingCharacters(in: .whitespaces)
-        
-        // Remove if already exists
-        recentSearches.removeAll { $0 == trimmed }
-        
-        // Add to front
-        recentSearches.insert(trimmed, at: 0)
-        
-        // Keep only last 10
-        if recentSearches.count > 10 {
-            recentSearches.removeLast()
-        }
-        
-        // Save to UserDefaults
-        if let encoded = try? JSONEncoder().encode(recentSearches) {
-            userDefaults.set(encoded, forKey: recentSearchesKey)
-        }
+
+    func removeRecentSearch(_ term: String) {
+        recentSearches.removeAll { $0 == term }
+        saveRecentSearches()
     }
-    
-    func clearRecentSearches() {
+
+    func clearAllRecent() {
         recentSearches = []
-        userDefaults.removeObject(forKey: recentSearchesKey)
+        saveRecentSearches()
+    }
+
+    private func loadRecentSearches() {
+        recentSearches = UserDefaults.standard.stringArray(forKey: "float_recent_searches") ?? []
+    }
+
+    private func saveRecentSearches() {
+        UserDefaults.standard.set(recentSearches, forKey: "float_recent_searches")
     }
 }
 
+// MARK: - SearchView (VenueSearch)
+
 struct SearchView: View {
-    @StateObject private var viewModel = SearchViewModel()
+    @StateObject private var viewModel = VenueSearchViewModel()
     @FocusState private var isFocused: Bool
-    
+
     var body: some View {
         NavigationStack {
-            ZStack {
-                FloatColors.background.ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    // Search Bar
-                    HStack(spacing: FloatSpacing.sm) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(FloatColors.textSecondary)
-                        
-                        TextField("Search deals & venues", text: $viewModel.searchQuery)
-                            .font(FloatFont.body())
-                            .foregroundStyle(FloatColors.textPrimary)
-                            .focused($isFocused)
-                            .onChange(of: viewModel.searchQuery) { _, newValue in
-                                viewModel.performSearch(newValue)
-                            }
-                        
-                        if !viewModel.searchQuery.isEmpty {
-                            Button(action: { viewModel.searchQuery = "" }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(FloatColors.textSecondary)
-                            }
-                        }
+            VStack(spacing: 0) {
+                searchBar
+
+                if viewModel.query.isEmpty {
+                    idleView
+                } else if viewModel.isSearching {
+                    searchingView
+                } else {
+                    resultsView
+                }
+            }
+            .background(FloatColors.adaptiveBackground.ignoresSafeArea())
+            .navigationTitle("Search")
+            .navigationBarTitleDisplayMode(.large)
+        }
+        .onAppear {
+            AnalyticsService.shared.track(.searchOpened)
+            isFocused = true
+        }
+    }
+
+    // MARK: - Search Bar
+
+    private var searchBar: some View {
+        HStack(spacing: FloatSpacing.sm) {
+            HStack(spacing: FloatSpacing.sm) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(FloatColors.adaptiveTextSecondary)
+
+                TextField("Search deals and venues…", text: $viewModel.query)
+                    .focused($isFocused)
+                    .font(FloatFont.body())
+                    .foregroundStyle(FloatColors.adaptiveTextPrimary)
+                    .submitLabel(.search)
+                    .onChange(of: viewModel.query) { _ in viewModel.performSearch() }
+                    .onSubmit { viewModel.addRecentSearch(viewModel.query) }
+
+                if !viewModel.query.isEmpty {
+                    Button {
+                        viewModel.query = ""
+                        isFocused = true
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(FloatColors.adaptiveTextSecondary)
                     }
-                    .padding(FloatSpacing.md)
-                    .background(FloatColors.cardBackground)
-                    
-                    Divider()
-                        .background(FloatColors.textSecondary.opacity(0.2))
-                    
-                    // Content
-                    ScrollView {
-                        if viewModel.searchQuery.isEmpty {
-                            emptyStateView
-                        } else if viewModel.searchResults.isEmpty && viewModel.venueResults.isEmpty {
-                            noResultsView
-                        } else {
-                            searchResultsView
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .padding(10)
+            .background(FloatColors.adaptiveCardBackground)
+            .cornerRadius(12)
+        }
+        .padding(.horizontal, FloatSpacing.md)
+        .padding(.vertical, FloatSpacing.sm)
+    }
+
+    // MARK: - Idle View
+
+    private var idleView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: FloatSpacing.lg) {
+                // Recent searches
+                if !viewModel.recentSearches.isEmpty {
+                    VStack(alignment: .leading, spacing: FloatSpacing.sm) {
+                        HStack {
+                            Text("Recent")
+                                .font(FloatFont.headline())
+                                .foregroundStyle(FloatColors.adaptiveTextPrimary)
+                            Spacer()
+                            Button("Clear") { viewModel.clearAllRecent() }
+                                .font(FloatFont.caption())
+                                .foregroundStyle(FloatColors.primary)
+                        }
+                        .padding(.horizontal, FloatSpacing.md)
+
+                        ForEach(viewModel.recentSearches, id: \.self) { term in
+                            recentRow(term)
                         }
                     }
                 }
-            }
-            .navigationTitle("Search")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-    
-    @ViewBuilder
-    private var emptyStateView: some View {
-        VStack(spacing: FloatSpacing.lg) {
-            // Suggested Categories
-            if !viewModel.recentSearches.isEmpty {
-                VStack(alignment: .leading, spacing: FloatSpacing.md) {
-                    Text("Recent Searches")
+
+                // Trending
+                VStack(alignment: .leading, spacing: FloatSpacing.sm) {
+                    Text("Trending")
                         .font(FloatFont.headline())
-                        .foregroundStyle(FloatColors.textPrimary)
+                        .foregroundStyle(FloatColors.adaptiveTextPrimary)
                         .padding(.horizontal, FloatSpacing.md)
-                    
+
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: FloatSpacing.sm) {
-                            ForEach(viewModel.recentSearches, id: \.self) { search in
-                                Button(action: {
-                                    viewModel.searchQuery = search
-                                    viewModel.performSearch(search)
-                                }) {
-                                    Text(search)
-                                        .font(FloatFont.callout())
-                                        .foregroundStyle(FloatColors.textPrimary)
-                                        .padding(.horizontal, FloatSpacing.md)
-                                        .padding(.vertical, FloatSpacing.sm)
-                                        .background(FloatColors.cardBackground)
-                                        .cornerRadius(FloatSpacing.badgeRadius)
+                            ForEach(viewModel.trendingSearches, id: \.self) { term in
+                                Button {
+                                    viewModel.query = term
+                                    viewModel.performSearch()
+                                } label: {
+                                    HStack(spacing: FloatSpacing.xs) {
+                                        Image(systemName: "flame.fill")
+                                            .font(.caption)
+                                            .foregroundStyle(FloatColors.warning)
+                                        Text(term)
+                                            .font(FloatFont.caption(.semibold))
+                                            .foregroundStyle(FloatColors.adaptiveTextPrimary)
+                                    }
+                                    .padding(.horizontal, FloatSpacing.sm)
+                                    .padding(.vertical, 8)
+                                    .background(FloatColors.adaptiveCardBackground)
+                                    .cornerRadius(20)
                                 }
                             }
                         }
                         .padding(.horizontal, FloatSpacing.md)
                     }
-                    
-                    Button(action: { viewModel.clearRecentSearches() }) {
-                        Text("Clear Recent Searches")
-                            .font(FloatFont.callout())
-                            .foregroundStyle(FloatColors.accent)
-                    }
-                    .padding(.horizontal, FloatSpacing.md)
-                }
-                .padding(.vertical, FloatSpacing.lg)
-            }
-            
-            VStack(alignment: .leading, spacing: FloatSpacing.md) {
-                Text("Suggested Categories")
-                    .font(FloatFont.headline())
-                    .foregroundStyle(FloatColors.textPrimary)
-                
-                Wrap(spacing: FloatSpacing.sm) {
-                    ForEach(viewModel.suggestedCategories, id: \.self) { category in
-                        Button(action: {
-                            viewModel.searchQuery = category
-                            viewModel.performSearch(category)
-                        }) {
-                            Text(category.replacingOccurrences(of: "_", with: " ").capitalized)
-                                .font(FloatFont.callout())
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, FloatSpacing.md)
-                                .padding(.vertical, FloatSpacing.sm)
-                                .background(FloatColors.primary)
-                                .cornerRadius(FloatSpacing.badgeRadius)
-                        }
-                    }
                 }
             }
-            .padding(FloatSpacing.md)
-            
+            .padding(.vertical, FloatSpacing.md)
+        }
+    }
+
+    @ViewBuilder
+    private func recentRow(_ term: String) -> some View {
+        Button {
+            viewModel.query = term
+            viewModel.performSearch()
+        } label: {
+            HStack {
+                Image(systemName: "clock")
+                    .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                    .frame(width: 20)
+                Text(term)
+                    .font(FloatFont.body())
+                    .foregroundStyle(FloatColors.adaptiveTextPrimary)
+                Spacer()
+                Button {
+                    viewModel.removeRecentSearch(term)
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption)
+                        .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                }
+                .accessibilityLabel("Remove \(term) from recent searches")
+            }
+            .padding(.horizontal, FloatSpacing.md)
+            .padding(.vertical, FloatSpacing.sm)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Searching
+
+    private var searchingView: some View {
+        VStack(spacing: FloatSpacing.lg) {
+            Spacer()
+            ProgressView().tint(FloatColors.primary)
+            Text("Searching…")
+                .font(FloatFont.body())
+                .foregroundStyle(FloatColors.adaptiveTextSecondary)
             Spacer()
         }
-        .padding(.top, FloatSpacing.lg)
     }
-    
-    @ViewBuilder
-    private var noResultsView: some View {
+
+    // MARK: - Results
+
+    private var resultsView: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                let totalResults = viewModel.dealResults.count + viewModel.venueResults.count
+
+                if totalResults == 0 {
+                    emptyResults
+                } else {
+                    Text("\(totalResults) result\(totalResults == 1 ? "" : "s") for \"\(viewModel.query)\"")
+                        .font(FloatFont.caption())
+                        .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                        .padding(.horizontal, FloatSpacing.md)
+                        .padding(.vertical, FloatSpacing.sm)
+
+                    // Deal results
+                    if !viewModel.dealResults.isEmpty {
+                        sectionHeader("Deals", count: viewModel.dealResults.count,
+                                      icon: "tag.fill", color: FloatColors.primary)
+
+                        ForEach(Array(viewModel.dealResults.enumerated()), id: \.element.id) { index, deal in
+                            NavigationLink(destination: DealDetailView(deal: deal)) {
+                                SearchDealRow(deal: deal)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .simultaneousGesture(TapGesture().onEnded {
+                                viewModel.addRecentSearch(viewModel.query)
+                                AnalyticsService.shared.track(.searchResultTapped(dealId: deal.id.uuidString, rank: index))
+                            })
+                            Divider()
+                                .padding(.leading, FloatSpacing.xl + FloatSpacing.md)
+                        }
+                    }
+
+                    // Venue results
+                    if !viewModel.venueResults.isEmpty {
+                        sectionHeader("Venues", count: viewModel.venueResults.count,
+                                      icon: "building.2.fill", color: FloatColors.accent)
+
+                        ForEach(viewModel.venueResults) { venue in
+                            NavigationLink(destination: VenueProfileView(venueId: venue.id, venueName: venue.name)) {
+                                SearchVenueRow(venue: venue)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            Divider()
+                                .padding(.leading, FloatSpacing.xl + FloatSpacing.md)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var emptyResults: some View {
         VStack(spacing: FloatSpacing.lg) {
+            Spacer().frame(height: FloatSpacing.xl)
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 48))
-                .foregroundStyle(FloatColors.textSecondary)
-            
-            Text("No Results Found")
+                .foregroundStyle(FloatColors.adaptiveTextSecondary)
+            Text("No results for \"\(viewModel.query)\"")
                 .font(FloatFont.headline())
-                .foregroundStyle(FloatColors.textPrimary)
-            
-            Text("Try searching for a different deal, venue, or category")
+                .foregroundStyle(FloatColors.adaptiveTextPrimary)
+            Text("Try different keywords or check spelling")
                 .font(FloatFont.body())
-                .foregroundStyle(FloatColors.textSecondary)
+                .foregroundStyle(FloatColors.adaptiveTextSecondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, FloatSpacing.md)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .padding(FloatSpacing.lg)
-    }
-    
-    @ViewBuilder
-    private var searchResultsView: some View {
-        LazyVStack(spacing: FloatSpacing.md) {
-            // Deals Section
-            if !viewModel.searchResults.isEmpty {
-                VStack(alignment: .leading, spacing: FloatSpacing.md) {
-                    Text("Deals")
-                        .font(FloatFont.headline())
-                        .foregroundStyle(FloatColors.textPrimary)
-                        .padding(.horizontal, FloatSpacing.md)
-                    
-                    ForEach(viewModel.searchResults.prefix(5)) { deal in
-                        NavigationLink(destination: DealDetailView(deal: deal)) {
-                            SearchDealCard(deal: deal)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.top, FloatSpacing.md)
-            }
-            
-            // Venues Section
-            if !viewModel.venueResults.isEmpty {
-                VStack(alignment: .leading, spacing: FloatSpacing.md) {
-                    Text("Venues")
-                        .font(FloatFont.headline())
-                        .foregroundStyle(FloatColors.textPrimary)
-                        .padding(.horizontal, FloatSpacing.md)
-                    
-                    ForEach(viewModel.venueResults.prefix(5)) { venue in
-                        SearchVenueCard(venue: venue)
-                    }
-                }
-                .padding(.top, FloatSpacing.md)
-            }
-        }
+        .frame(maxWidth: .infinity)
         .padding(FloatSpacing.md)
     }
+
+    @ViewBuilder
+    private func sectionHeader(_ title: String, count: Int, icon: String, color: Color) -> some View {
+        HStack(spacing: FloatSpacing.xs) {
+            Image(systemName: icon).font(.caption).foregroundStyle(color)
+            Text(title)
+                .font(FloatFont.caption(.semibold))
+                .foregroundStyle(FloatColors.adaptiveTextSecondary)
+            Text("(\(count))")
+                .font(FloatFont.caption())
+                .foregroundStyle(FloatColors.adaptiveTextSecondary)
+        }
+        .padding(.horizontal, FloatSpacing.md)
+        .padding(.vertical, FloatSpacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(FloatColors.adaptiveBackground)
+    }
 }
 
-struct SearchDealCard: View {
+// MARK: - SearchDealRow
+
+struct SearchDealRow: View {
     let deal: Deal
-    
+
     var body: some View {
-        FloatCard {
-            VStack(alignment: .leading, spacing: FloatSpacing.sm) {
-                HStack(spacing: FloatSpacing.md) {
-                    VStack(alignment: .leading, spacing: FloatSpacing.xs) {
-                        Text(deal.title)
-                            .font(FloatFont.headline())
-                            .foregroundStyle(FloatColors.textPrimary)
-                            .lineLimit(2)
-                        
-                        if let venueName = deal.venueName {
-                            Text(venueName)
-                                .font(FloatFont.callout())
-                                .foregroundStyle(FloatColors.textSecondary)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    FloatBadge(text: deal.category.uppercased())
+        HStack(spacing: FloatSpacing.md) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(deal.categoryColor.opacity(0.15))
+                    .frame(width: 44, height: 44)
+                Image(systemName: "tag.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(deal.categoryColor)
+            }
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(deal.title)
+                    .font(FloatFont.body(.semibold))
+                    .foregroundStyle(FloatColors.adaptiveTextPrimary)
+                    .lineLimit(1)
+                HStack(spacing: FloatSpacing.xs) {
+                    Text(deal.venueName ?? "Unknown")
+                        .font(FloatFont.caption())
+                        .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                    Text("·")
+                        .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                    Text(deal.discountDisplay)
+                        .font(FloatFont.caption(.semibold))
+                        .foregroundStyle(deal.categoryColor)
                 }
             }
+
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(FloatColors.adaptiveTextSecondary)
         }
+        .padding(.horizontal, FloatSpacing.md)
+        .padding(.vertical, 10)
     }
 }
 
-struct SearchVenueCard: View {
+// MARK: - SearchVenueRow
+
+struct SearchVenueRow: View {
     let venue: Venue
-    
+
     var body: some View {
-        FloatCard {
-            VStack(alignment: .leading, spacing: FloatSpacing.sm) {
-                HStack(spacing: FloatSpacing.md) {
-                    VStack(alignment: .leading, spacing: FloatSpacing.xs) {
-                        Text(venue.name)
-                            .font(FloatFont.headline())
-                            .foregroundStyle(FloatColors.textPrimary)
-                        
-                        Text(venue.address)
-                            .font(FloatFont.callout())
-                            .foregroundStyle(FloatColors.textSecondary)
-                            .lineLimit(1)
-                    }
-                    
-                    Spacer()
-                    
-                    VStack(alignment: .trailing, spacing: FloatSpacing.xs) {
-                        HStack(spacing: FloatSpacing.xs) {
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(FloatColors.warning)
-                            
-                            Text(String(format: "%.1f", venue.rating))
-                                .font(FloatFont.callout())
-                                .foregroundStyle(FloatColors.textPrimary)
-                        }
-                    }
+        HStack(spacing: FloatSpacing.md) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(FloatColors.accent.opacity(0.15))
+                    .frame(width: 44, height: 44)
+                Image(systemName: "building.2.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(FloatColors.accent)
+            }
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(venue.name)
+                    .font(FloatFont.body(.semibold))
+                    .foregroundStyle(FloatColors.adaptiveTextPrimary)
+                    .lineLimit(1)
+                if let address = venue.address {
+                    Text(address)
+                        .font(FloatFont.caption())
+                        .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                        .lineLimit(1)
                 }
             }
+
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(FloatColors.adaptiveTextSecondary)
         }
+        .padding(.horizontal, FloatSpacing.md)
+        .padding(.vertical, 10)
     }
 }
 
-// Wrap component for grid layout
-struct Wrap<Content: View>: View {
-    let spacing: CGFloat
-    let content: [Content]
-    
-    init(spacing: CGFloat = 8, @ViewBuilder builder: () -> [Content]) {
-        self.spacing = spacing
-        self.content = builder()
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: spacing) {
-            var rowContent: [Content] = []
-            
-            ForEach(0..<content.count, id: \.self) { index in
-                HStack(spacing: spacing) {
-                    content[index]
-                    Spacer()
-                }
-            }
-        }
-    }
-}
-
-// Mock data for preview
-struct Venue: Identifiable {
-    let id: UUID
-    let name: String
-    let address: String
-    let rating: Double
-}
+// MARK: - Mock Data
 
 let mockVenues = [
-    Venue(id: UUID(), name: "Honky Tonk Central", address: "118 2nd Ave S", rating: 4.6),
-    Venue(id: UUID(), name: "The Bluebird Cafe", address: "4104 Nolensville Pike", rating: 4.8),
+    Venue(id: UUID(), name: "The Daily Brew", address: "123 Main St, Nashville",
+          phone: "555-0100", website: "https://example.com",
+          hours: "8am-10pm", isOpenNow: true, closingTime: "10:00 PM", isSaved: false),
+    Venue(id: UUID(), name: "Food Court Pro", address: "456 Broadway, Nashville",
+          phone: "555-0101", website: "https://example.com",
+          hours: "11am-11pm", isOpenNow: true, closingTime: "11:00 PM", isSaved: true),
+    Venue(id: UUID(), name: "Happy Hour Haven", address: "789 Commerce St, Nashville",
+          phone: "555-0102", website: "https://example.com",
+          hours: "4pm-12am", isOpenNow: true, closingTime: "12:00 AM", isSaved: false),
+    Venue(id: UUID(), name: "The Mix", address: "321 5th Ave N, Nashville",
+          phone: "555-0103", website: "https://example.com",
+          hours: "5pm-2am", isOpenNow: false, closingTime: "2:00 AM", isSaved: false),
+    Venue(id: UUID(), name: "Late Night Eats", address: "654 Church St, Nashville",
+          phone: "555-0104", website: nil,
+          hours: "10pm-4am", isOpenNow: true, closingTime: "4:00 AM", isSaved: true),
+    Venue(id: UUID(), name: "Cocktail Corner", address: "987 Demonbreun St, Nashville",
+          phone: "555-0105", website: "https://example.com",
+          hours: "6pm-1am", isOpenNow: true, closingTime: "1:00 AM", isSaved: false)
 ]
 
 let mockDeals = [
-    Deal(id: UUID(), title: "Happy Hour: $4 Wells", description: "$4 domestic wells 4-7pm", category: "drink", venueName: "Honky Tonk Central", expiresAt: Date().addingTimeInterval(3600), discountType: "fixed", discountValue: 4),
-    Deal(id: UUID(), title: "2-for-1 Margaritas", description: "Buy one, get one free", category: "drink", venueName: "El Paso Bar", expiresAt: Date().addingTimeInterval(3600), discountType: "bogo", discountValue: nil),
+    Deal(id: UUID(), title: "2-for-1 Cocktails", description: "Buy one get one free on all cocktails",
+         category: "drink", venueId: mockVenues[0].id, venueName: "The Daily Brew",
+         expiresAt: Date().addingTimeInterval(3600), startsAt: Date(),
+         discountType: "bogo", discountValue: nil, terms: "Valid at bar only.",
+         distance: 300, distanceFromUser: 300),
+    Deal(id: UUID(), title: "Happy Hour Nachos", description: "Half-price nachos all evening",
+         category: "food", venueId: mockVenues[1].id, venueName: "Food Court Pro",
+         expiresAt: Date().addingTimeInterval(7200), startsAt: Date(),
+         discountType: "percentage", discountValue: 50, terms: "Dine-in only.",
+         distance: 800, distanceFromUser: 800),
+    Deal(id: UUID(), title: "30% Off Draft Beers", description: "All draft beers 30% off",
+         category: "drink", venueId: mockVenues[2].id, venueName: "Happy Hour Haven",
+         expiresAt: Date().addingTimeInterval(1800), startsAt: Date(),
+         discountType: "percentage", discountValue: 30, terms: "21+ only.",
+         distance: 500, distanceFromUser: 500),
+    Deal(id: UUID(), title: "Burger & Beer Combo", description: "House burger + draft beer",
+         category: "both", venueId: mockVenues[3].id, venueName: "The Mix",
+         expiresAt: Date().addingTimeInterval(5400), startsAt: Date(),
+         discountType: "fixed", discountValue: 5, terms: "One per customer.",
+         distance: 1200, distanceFromUser: 1200),
+    Deal(id: UUID(), title: "Flash: $3 Shots", description: "All well shots $3 — tonight only!",
+         category: "flash", venueId: mockVenues[4].id, venueName: "Late Night Eats",
+         expiresAt: Date().addingTimeInterval(900), startsAt: Date(),
+         discountType: "fixed", discountValue: 3, terms: "While supplies last.",
+         distance: 2000, distanceFromUser: 2000),
+    Deal(id: UUID(), title: "Wine Wednesday 40% Off", description: "All bottles of wine 40% off",
+         category: "drink", venueId: mockVenues[5].id, venueName: "Cocktail Corner",
+         expiresAt: Date().addingTimeInterval(14400), startsAt: Date(),
+         discountType: "percentage", discountValue: 40, terms: "Bottles only, no glass pours.",
+         distance: 650, distanceFromUser: 650)
 ]
-
-#Preview {
-    SearchView()
-        .environment(\.colorScheme, .dark)
-}
