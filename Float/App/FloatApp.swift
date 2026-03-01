@@ -14,6 +14,16 @@ struct FloatApp: App {
     private var notificationService: NotificationService { NotificationService.shared }
     private var geofenceManager: GeofenceManager { GeofenceManager.shared }
 
+    /// True when running under XCUITest
+    static var isUITesting: Bool {
+        CommandLine.arguments.contains("--uitesting")
+    }
+
+    /// True when UI tests want a pre-authenticated mock state
+    static var isMockAuth: Bool {
+        CommandLine.arguments.contains("--mock-auth")
+    }
+
     init() {
         configureSDKs()
     }
