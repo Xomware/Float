@@ -58,7 +58,7 @@ struct RedemptionView: View {
                                         .foregroundStyle(FloatColors.textSecondary)
                                     
                                     Text(viewModel.redemptionToken)
-                                        .font(FloatFont.caption2(.monospaced()))
+                                        .font(FloatFont.caption2().monospaced())
                                         .foregroundStyle(FloatColors.textPrimary)
                                         .lineLimit(1)
                                 }
