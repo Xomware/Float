@@ -1,3 +1,6 @@
+// LocationService.swift
+// Float
+
 import CoreLocation
 import SwiftUI
 

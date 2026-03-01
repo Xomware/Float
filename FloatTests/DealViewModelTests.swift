@@ -1,3 +1,6 @@
+// DealViewModelTests.swift
+// Float
+
 import XCTest
 @testable import Float
 import CoreLocation

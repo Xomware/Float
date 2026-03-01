@@ -1,3 +1,6 @@
+// ErrorStateView.swift
+// Float
+
 import SwiftUI
 
 // MARK: - Error State View

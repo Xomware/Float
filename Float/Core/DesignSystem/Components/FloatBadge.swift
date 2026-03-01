@@ -1,3 +1,6 @@
+// FloatBadge.swift
+// Float
+
 import SwiftUI
 
 public struct FloatBadge: View {

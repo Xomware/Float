@@ -1,8 +1,11 @@
+// RedemptionHistoryView.swift
+// Float
+
 import SwiftUI
 
 struct RedemptionHistoryView: View {
     @StateObject private var viewModel = RedemptionViewModel()
-    @State private var userId: UUID = UUID()
+    @State private var userId = UUID()
     
     var body: some View {
         NavigationStack {

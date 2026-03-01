@@ -1,3 +1,6 @@
+// OnboardingView.swift
+// Float
+
 import SwiftUI
 
 struct OnboardingView: View {
@@ -57,6 +60,7 @@ struct OnboardingStep1View: View {
             
             VStack(spacing: FloatSpacing.sm) {
                 Text("Deals Near You").font(FloatFont.title())
+                // swiftlint:disable:next line_length
                 Text("Float uses your location to surface live deals at bars and restaurants within walking distance. We never share your location.")
                     .font(FloatFont.body())
                     .foregroundStyle(FloatColors.textSecondary)
@@ -162,7 +166,7 @@ struct OnboardingStep3View: View {
                     FloatTextField("Username (no spaces)", text: $username, icon: "at")
                         .onChange(of: username) { _, new in
                             username = new.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "_" }
-                            usernameError = new.count > 0 && new.count < 3 ? "Username must be at least 3 characters" : nil
+                            usernameError = !new.isEmpty && new.count < 3 ? "Username must be at least 3 characters" : nil
                         }
                     if let error = usernameError {
                         Text(error).font(FloatFont.caption()).foregroundStyle(FloatColors.error).padding(.leading, FloatSpacing.sm)

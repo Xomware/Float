@@ -1,3 +1,6 @@
+// PushNotification.swift
+// Float
+
 import Foundation
 
 // MARK: - Push Notification Payload Models

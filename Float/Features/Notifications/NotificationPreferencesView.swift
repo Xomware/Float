@@ -1,3 +1,6 @@
+// NotificationPreferencesView.swift
+// Float
+
 import SwiftUI
 import UserNotifications
 

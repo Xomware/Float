@@ -1,3 +1,6 @@
+// MapViewModel.swift
+// Float
+
 import SwiftUI
 import MapKit
 import Combine
@@ -79,7 +82,7 @@ class MapViewModel: ObservableObject {
         
         logger.info("Loading nearby deals from map")
         
-        // TODO: Call Supabase nearby_deals RPC with user coordinates
+        // Placeholder: Call Supabase nearby_deals RPC with user coordinates
         // For now, generate mock data
         
         guard let userLocation = locationService.currentLocation?.coordinate else {

@@ -1,3 +1,6 @@
+// Spacing.swift
+// Float
+
 import Foundation
 
 public enum FloatSpacing {

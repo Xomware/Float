@@ -1,3 +1,4 @@
 // AuthViewModel.swift
-// Auth view model - AuthService is defined in Services/AuthService.swift
+// Float
+
 import SwiftUI

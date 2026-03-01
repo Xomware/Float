@@ -1,3 +1,6 @@
+// SupabaseService.swift
+// Float
+
 import Foundation
 
 // Supabase client — initialized in FloatApp.swift after config loading
