@@ -8,10 +8,29 @@ struct DealListView: View {
     @State private var showSortMenu = false
     @State private var filterState = DealFilterState()
     @State private var showFilters = false
+    private let networkMonitor = NetworkMonitor.shared
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // Offline banner
+                if !networkMonitor.isConnected {
+                    OfflineBannerView(cacheDate: viewModel.cacheDate)
+                        .padding(.top, FloatSpacing.xs)
+                }
+
+                // Cache age indicator when showing cached data while online
+                if viewModel.isShowingCachedData && networkMonitor.isConnected, let cacheDate = viewModel.cacheDate {
+                    HStack(spacing: FloatSpacing.xs) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.caption)
+                        Text("Last updated \(cacheDate.relativeDescription)")
+                            .font(FloatFont.caption2())
+                    }
+                    .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                    .padding(.vertical, FloatSpacing.xs)
+                }
+
                 // Header with deal count
                 VStack(alignment: .leading, spacing: FloatSpacing.sm) {
                     HStack(alignment: .center, spacing: FloatSpacing.sm) {
@@ -199,7 +218,7 @@ struct DealListView: View {
             }
             .navigationTitle("Active Deals")
             .navigationBarTitleDisplayMode(.large)
-            .refreshable { await viewModel.loadDeals() }
+            .refreshable { await viewModel.loadDeals(forceRefresh: true) }
         }
         .task { await viewModel.loadDeals() }
     }
