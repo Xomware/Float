@@ -111,7 +111,7 @@ class DealViewModel: ObservableObject {
         isLoadingMore = currentPage > 1
         defer { isLoadingMore = false }
         
-        logger.info("Loading deals page \(currentPage)")
+        logger.info("Loading deals page \(self.currentPage)")
         
         // Simulate loading with mock data for now
         // TODO: Replace with actual Supabase fetch
