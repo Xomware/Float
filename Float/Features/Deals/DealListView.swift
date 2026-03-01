@@ -5,57 +5,61 @@ import SwiftUI
 
 struct DealListView: View {
     @StateObject private var viewModel = DealViewModel()
-    @State private var showSortMenu = false
-    @State private var filterState = DealFilterState()
+    @StateObject private var searchService = SearchService()
+    @State private var searchFilter = SearchFilter()
     @State private var showFilters = false
+    @State private var showSavedFilters = false
+
+    /// Deals to display: use search results when a filter is active, otherwise the VM's filtered list.
+    private var displayedDeals: [Deal] {
+        searchFilter.isDefault && searchFilter.query.isEmpty
+            ? viewModel.filteredDeals
+            : searchService.results
+    }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Header with deal count
+                // Search bar
+                SearchBarView(text: $searchFilter.query, placeholder: "Search deals…")
+                    .onChange(of: searchFilter.query) { _ in
+                        triggerSearch()
+                    }
+
+                // Header with deal count + filter button
                 VStack(alignment: .leading, spacing: FloatSpacing.sm) {
                     HStack(alignment: .center, spacing: FloatSpacing.sm) {
-                        Text(viewModel.isLoading ? "Finding deals…" : "\(viewModel.filteredDeals.count) deals near you")
+                        Text(viewModel.isLoading ? "Finding deals…" : "\(displayedDeals.count) deals near you")
                             .font(FloatFont.headline())
                             .foregroundStyle(FloatColors.adaptiveTextPrimary)
                             .contentTransition(.numericText())
-                            .animation(.easeInOut(duration: 0.3), value: viewModel.filteredDeals.count)
-                            .accessibilityLabel(viewModel.isLoading ? "Loading deals" : "\(viewModel.filteredDeals.count) deals near you")
+                            .animation(.easeInOut(duration: 0.3), value: displayedDeals.count)
 
                         Spacer()
 
-                        // Sort picker
-                        Menu {
-                            ForEach(DealSortOption.allCases, id: \.self) { option in
-                                Button(action: { viewModel.updateSort(option) }) {
-                                    HStack {
-                                        Text(option.rawValue)
-                                        if viewModel.sortOption == option {
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: FloatSpacing.xs) {
-                                Image(systemName: "arrow.up.arrow.down")
-                                Text("Sort")
-                            }
-                            .font(FloatFont.caption(.semibold))
-                            .padding(.horizontal, FloatSpacing.sm)
-                            .padding(.vertical, 6)
-                            .background(FloatColors.adaptiveCardBackground)
-                            .cornerRadius(FloatSpacing.badgeRadius)
+                        // Saved filters
+                        Button { showSavedFilters = true } label: {
+                            Image(systemName: "bookmark")
+                                .font(FloatFont.caption(.semibold))
+                                .padding(.horizontal, FloatSpacing.sm)
+                                .padding(.vertical, 6)
+                                .background(FloatColors.adaptiveCardBackground)
+                                .cornerRadius(FloatSpacing.badgeRadius)
                         }
-                        .accessibilityLabel("Sort deals")
+                        .accessibilityLabel("Saved filters")
+                        .sheet(isPresented: $showSavedFilters) {
+                            SavedFiltersView(currentFilter: $searchFilter)
+                                .presentationDetents([.medium, .large])
+                                .presentationDragIndicator(.visible)
+                        }
 
                         // Filter button
                         Button { showFilters = true } label: {
                             HStack(spacing: FloatSpacing.xs) {
                                 Image(systemName: "slider.horizontal.3")
                                 Text("Filters")
-                                if filterState.isActive {
-                                    Text("\(filterState.activeCount)")
+                                if searchFilter.activeFilterCount > 0 {
+                                    Text("\(searchFilter.activeFilterCount)")
                                         .font(.caption2.bold())
                                         .padding(4)
                                         .background(FloatColors.primary)
@@ -66,47 +70,17 @@ struct DealListView: View {
                             .font(FloatFont.caption(.semibold))
                             .padding(.horizontal, FloatSpacing.sm)
                             .padding(.vertical, 6)
-                            .background(filterState.isActive
+                            .background(searchFilter.activeFilterCount > 0
                                 ? FloatColors.primary.opacity(0.15)
                                 : FloatColors.adaptiveCardBackground)
-                            .foregroundStyle(filterState.isActive
+                            .foregroundStyle(searchFilter.activeFilterCount > 0
                                 ? FloatColors.primary
                                 : FloatColors.adaptiveTextPrimary)
                             .cornerRadius(FloatSpacing.badgeRadius)
                         }
-                        .accessibilityLabel("Filter deals\(filterState.isActive ? ", \(filterState.activeCount) active" : "")")
+                        .accessibilityLabel("Filter deals")
                         .sheet(isPresented: $showFilters) {
-                            DealFiltersView(filterState: $filterState)
-                                .presentationDetents([.medium, .large])
-                                .presentationDragIndicator(.visible)
-                        }
-
-                        // Filters button
-                        Button {
-                            showFilters = true
-                        } label: {
-                            HStack(spacing: FloatSpacing.xs) {
-                                Image(systemName: "slider.horizontal.3")
-                                Text("Filters")
-                                if filterState.isActive {
-                                    Text("\(filterState.activeCount)")
-                                        .font(.caption2.bold())
-                                        .padding(4)
-                                        .background(FloatColors.primary)
-                                        .foregroundStyle(.white)
-                                        .clipShape(Circle())
-                                }
-                            }
-                            .font(FloatFont.caption(.semibold))
-                            .padding(.horizontal, FloatSpacing.sm)
-                            .padding(.vertical, 6)
-                            .background(filterState.isActive ? FloatColors.primary.opacity(0.15) : FloatColors.adaptiveCardBackground)
-                            .foregroundStyle(filterState.isActive ? FloatColors.primary : FloatColors.adaptiveTextPrimary)
-                            .cornerRadius(FloatSpacing.badgeRadius)
-                        }
-                        .accessibilityLabel("Filter deals\(filterState.isActive ? ", \(filterState.activeCount) active" : "")")
-                        .sheet(isPresented: $showFilters) {
-                            DealFiltersView(filterState: $filterState)
+                            SearchFilterView(filter: $searchFilter)
                                 .presentationDetents([.medium, .large])
                                 .presentationDragIndicator(.visible)
                         }
@@ -114,8 +88,12 @@ struct DealListView: View {
                     .padding(FloatSpacing.md)
                 }
                 .background(FloatColors.adaptiveBackground)
+                .onChange(of: searchFilter) { _ in triggerSearch() }
 
-                // Filter chips
+                // Active filter chips
+                ActiveFiltersView(filter: $searchFilter)
+
+                // Category quick-filter chips
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: FloatSpacing.sm) {
                         ForEach(DealCategory.allCases, id: \.self) { category in
@@ -154,7 +132,7 @@ struct DealListView: View {
                             Task { await viewModel.loadDeals() }
                         }
                         .transition(.floatFade)
-                    } else if viewModel.filteredDeals.isEmpty {
+                    } else if displayedDeals.isEmpty {
                         // Empty state
                         EmptyStateView(
                             EmptyStateConfig.noDealsNearby {
@@ -166,7 +144,7 @@ struct DealListView: View {
                         // Deal list with animated cards
                         ScrollView {
                             LazyVStack(spacing: FloatSpacing.sm) {
-                                ForEach(Array(viewModel.filteredDeals.enumerated()), id: \.element.id) { index, deal in
+                                ForEach(Array(displayedDeals.enumerated()), id: \.element.id) { index, deal in
                                     NavigationLink(destination: DealDetailView(deal: deal)) {
                                         AnimatedDealCard(index: index) {
                                             DealCardView(deal: deal)
@@ -174,7 +152,7 @@ struct DealListView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .onAppear {
-                                        if deal.id == viewModel.filteredDeals.last?.id && viewModel.hasMore {
+                                        if deal.id == displayedDeals.last?.id && viewModel.hasMore {
                                             Task { await viewModel.loadMoreDeals() }
                                         }
                                     }
@@ -193,7 +171,7 @@ struct DealListView: View {
                     }
                 }
                 .animation(.easeInOut(duration: 0.3), value: viewModel.isLoading)
-                .animation(.easeInOut(duration: 0.25), value: viewModel.filteredDeals.isEmpty)
+                .animation(.easeInOut(duration: 0.25), value: displayedDeals.isEmpty)
 
                 Spacer()
             }
@@ -202,6 +180,10 @@ struct DealListView: View {
             .refreshable { await viewModel.loadDeals() }
         }
         .task { await viewModel.loadDeals() }
+    }
+
+    private func triggerSearch() {
+        searchService.debouncedSearch(deals: viewModel.deals, filter: searchFilter)
     }
 }
 

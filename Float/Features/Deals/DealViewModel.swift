@@ -64,7 +64,7 @@ enum DealSortOption: String, CaseIterable {
 }
 
 // MARK: - Category Filter
-enum DealCategory: String, CaseIterable {
+enum DealCategory: String, CaseIterable, Codable {
     case all = "All"
     case drinks = "Drinks"
     case food = "Food"
