@@ -1,6 +1,3 @@
+// AuthViewModel.swift
+// Auth view model - AuthService is defined in Services/AuthService.swift
 import SwiftUI
-
-class AuthService: ObservableObject {
-    @Published var isAuthenticated = false
-    @Published var isLoading = false
-}

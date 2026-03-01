@@ -112,7 +112,7 @@ public extension EmptyStateConfig {
     static func noSearchResults(query: String, action: @escaping () -> Void) -> EmptyStateConfig {
         EmptyStateConfig(
             systemImage: "magnifyingglass",
-            title: "No Results for "\(query)"",
+            title: "No Results for \"\(query)\"",
             subtitle: "Try different keywords or browse by category.",
             actionTitle: "Clear Search",
             action: action,

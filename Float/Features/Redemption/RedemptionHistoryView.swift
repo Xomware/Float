@@ -120,7 +120,7 @@ struct RedemptionHistoryCard: View {
                             .foregroundStyle(FloatColors.textSecondary)
                         
                         Text(redemption.qrToken.prefix(8).uppercased())
-                            .font(FloatFont.caption(.monospaced()))
+                            .font(FloatFont.caption().monospaced())
                             .foregroundStyle(FloatColors.primary)
                     }
                 }

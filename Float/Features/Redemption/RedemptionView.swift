@@ -27,8 +27,8 @@ struct RedemptionView: View {
                             }
                             
                             HStack(spacing: FloatSpacing.md) {
-                                FloatBadge(text: deal.category.uppercased())
-                                FloatBadge(text: deal.discountType.uppercased(), style: .secondary)
+                                FloatBadge(deal.category.uppercased())
+                                FloatBadge(deal.discountType.uppercased(), color: FloatColors.secondary)
                                 Spacer()
                             }
                         }
@@ -58,7 +58,7 @@ struct RedemptionView: View {
                                         .foregroundStyle(FloatColors.textSecondary)
                                     
                                     Text(viewModel.redemptionToken)
-                                        .font(FloatFont.caption2(.monospaced()))
+                                        .font(FloatFont.caption2().monospaced())
                                         .foregroundStyle(FloatColors.textPrimary)
                                         .lineLimit(1)
                                 }
@@ -177,6 +177,7 @@ extension Font {
         title: "2-for-1 Margaritas",
         description: "Buy one margarita, get one free tonight only",
         category: "drink",
+        venueId: UUID(),
         venueName: "El Paso Bar",
         expiresAt: Date().addingTimeInterval(3600),
         discountType: "bogo",

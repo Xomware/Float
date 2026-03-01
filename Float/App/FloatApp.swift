@@ -11,6 +11,8 @@ private let logger = Logger(subsystem: "com.xomware.float", category: "FloatApp"
 struct FloatApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var authService = AuthService()
+    private var notificationService: NotificationService { NotificationService.shared }
+    private var geofenceManager: GeofenceManager { GeofenceManager.shared }
 
     init() {
         configureSDKs()

@@ -1,8 +1,11 @@
 import SwiftUI
 import CoreLocation
+import OSLog
+
+private let logger = Logger(subsystem: "com.xomware.float", category: "Deals")
 
 // MARK: - Models
-struct Deal: Identifiable {
+struct Deal: Identifiable, Codable {
     let id: UUID
     var title: String
     var description: String?
@@ -108,7 +111,7 @@ class DealViewModel: ObservableObject {
         isLoadingMore = currentPage > 1
         defer { isLoadingMore = false }
         
-        Logger.deals.info("Loading deals page \(currentPage)")
+        logger.info("Loading deals page \(self.currentPage)")
         
         // Simulate loading with mock data for now
         // TODO: Replace with actual Supabase fetch

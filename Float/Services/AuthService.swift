@@ -215,7 +215,7 @@ struct AppleSignInResult {
 
 @MainActor
 final class SignInWithAppleHelper: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
-    private var continuation: CheckedContinuation<AppleSignInResult, Error>?
+    nonisolated(unsafe) private var continuation: CheckedContinuation<AppleSignInResult, Error>?
     private let nonce = UUID().uuidString
     
     func signIn() async throws -> AppleSignInResult {
