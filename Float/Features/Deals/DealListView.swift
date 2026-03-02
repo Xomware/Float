@@ -74,6 +74,7 @@ struct DealListView: View {
                                 : FloatColors.adaptiveTextPrimary)
                             .cornerRadius(FloatSpacing.badgeRadius)
                         }
+                        .accessibilityIdentifier("filterDealsButton")
                         .accessibilityLabel("Filter deals\(filterState.isActive ? ", \(filterState.activeCount) active" : "")")
                         .sheet(isPresented: $showFilters) {
                             DealFiltersView(filterState: $filterState)
