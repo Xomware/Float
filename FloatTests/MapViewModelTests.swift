@@ -1,3 +1,6 @@
+// MapViewModelTests.swift
+// Float
+
 import XCTest
 import MapKit
 @testable import Float

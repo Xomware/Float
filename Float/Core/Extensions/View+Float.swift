@@ -1,3 +1,6 @@
+// View+Float.swift
+// Float
+
 import SwiftUI
 
 extension View {

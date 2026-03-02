@@ -1,3 +1,6 @@
+// NotificationInboxView.swift
+// Float
+
 import SwiftUI
 
 // MARK: - NotificationInboxView

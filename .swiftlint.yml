@@ -43,15 +43,15 @@ opt_in_rules:
   - redundant_type_annotation
   - strict_fileprivate
   - toggle_bool
-  - trailing_closure
   - unneeded_parentheses_in_closure_argument
   - unused_import
-  - vertical_parameter_alignment_on_call
   - vertical_whitespace_closing_braces
   - yoda_condition
 
 disabled_rules:
   - trailing_whitespace   # handled by Xcode formatter
+  - multiple_closures_with_trailing_closure  # conflicts with SwiftUI idioms
+  - vertical_parameter_alignment_on_call     # conflicts with SwiftUI idioms
 
 # ── Thresholds ────────────────────────────────────────────────────────────
 line_length:
@@ -89,6 +89,7 @@ identifier_name:
     - y
     - dx
     - dy
+    - i
 
 nesting:
   type_level: 3

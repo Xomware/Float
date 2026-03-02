@@ -1,5 +1,9 @@
+// BookmarkService.swift
+// Float
+
 import Foundation
 import Supabase
+import UserNotifications
 import OSLog
 
 private let logger = Logger(subsystem: "com.xomware.float", category: "Bookmarks")
@@ -45,9 +49,23 @@ class BookmarkService: ObservableObject {
         }
     }
 
+    /// Save a deal bookmark and schedule expiry notifications.
+    func saveDeal(_ deal: Deal) async {
+        await saveDeal(deal.id)
+
+        // Schedule expiry notifications if deal expires in the future
+        if let expiresAt = deal.expiresAt, expiresAt > Date() {
+            await promptForNotificationPermissionIfNeeded()
+            await NotificationScheduler.shared.scheduleDealExpiryAlerts(for: deal)
+        }
+    }
+
     func unsaveDeal(_ dealId: UUID) async {
         savedDealIds.remove(dealId)
         cacheSavedDeals()
+
+        // Cancel any pending expiry notifications
+        await NotificationScheduler.shared.cancelAlerts(for: dealId)
 
         do {
             try await supabaseClient
@@ -133,6 +151,26 @@ class BookmarkService: ObservableObject {
             // Fall back to local cache
             loadCachedBookmarks()
         }
+    }
+
+    // MARK: - Notification Permission Pre-Prompt
+
+    @Published var showNotificationPrePrompt = false
+
+    /// Shows the in-app pre-prompt on the first-ever bookmark, then requests system permission.
+    private func promptForNotificationPermissionIfNeeded() async {
+        let key = "hasRequestedNotificationPermission"
+        guard !userDefaults.bool(forKey: key) else { return }
+        userDefaults.set(true, forKey: key)
+
+        // Show pre-prompt — the UI layer observes `showNotificationPrePrompt`
+        showNotificationPrePrompt = true
+        // Actual permission request is triggered by the UI's "Enable" button
+    }
+
+    /// Called from UI when user taps "Enable" on the pre-prompt.
+    func grantNotificationPermission() async {
+        _ = await NotificationScheduler.shared.requestPermission()
     }
 
     // MARK: - Local Caching

@@ -1,3 +1,6 @@
+// GeofenceManager.swift
+// Float
+
 import CoreLocation
 import OSLog
 import Supabase
@@ -55,15 +58,13 @@ final class GeofenceManager: NSObject, ObservableObject {
     func startMonitoring(venues: [VenueGeofenceInfo]) {
         // Remove stale regions not in new venue set
         let newIds = Set(venues.map(\.venueId))
-        for region in manager.monitoredRegions {
-            if region.identifier.hasPrefix("float-venue-") {
-                let venueId = String(region.identifier.dropFirst("float-venue-".count))
-                if !newIds.contains(venueId) {
-                    manager.stopMonitoring(for: region)
-                    monitoredVenueIds.remove(venueId)
-                    venueRegionMap.removeValue(forKey: region.identifier)
-                    logger.debug("Stopped monitoring venue: \(venueId)")
-                }
+        for region in manager.monitoredRegions where region.identifier.hasPrefix("float-venue-") {
+            let venueId = String(region.identifier.dropFirst("float-venue-".count))
+            if !newIds.contains(venueId) {
+                manager.stopMonitoring(for: region)
+                monitoredVenueIds.remove(venueId)
+                venueRegionMap.removeValue(forKey: region.identifier)
+                logger.debug("Stopped monitoring venue: \(venueId)")
             }
         }
 

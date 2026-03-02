@@ -1,3 +1,6 @@
+// SupabaseClientService.swift
+// Float
+
 import Supabase
 import Foundation
 

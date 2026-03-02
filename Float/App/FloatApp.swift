@@ -1,5 +1,9 @@
+// FloatApp.swift
+// Float
+
 import SwiftUI
 import Supabase
+import UserNotifications
 import OSLog
 
 private let logger = Logger(subsystem: "com.xomware.float", category: "FloatApp")
@@ -11,11 +15,25 @@ private let logger = Logger(subsystem: "com.xomware.float", category: "FloatApp"
 struct FloatApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var authService = AuthService()
+    @StateObject private var navigationCoordinator = NavigationCoordinator()
     private var notificationService: NotificationService { NotificationService.shared }
     private var geofenceManager: GeofenceManager { GeofenceManager.shared }
 
+    /// True when running under XCUITest
+    static var isUITesting: Bool {
+        CommandLine.arguments.contains("--uitesting")
+    }
+
+    /// True when UI tests want a pre-authenticated mock state
+    static var isMockAuth: Bool {
+        CommandLine.arguments.contains("--mock-auth")
+    }
+
     init() {
         configureSDKs()
+        // Set up local notification delegate for deal expiry deep links
+        let delegate = NotificationDelegate.shared
+        UNUserNotificationCenter.current().delegate = delegate
     }
 
     var body: some Scene {
@@ -24,6 +42,7 @@ struct FloatApp: App {
                 .environmentObject(authService)
                 .environmentObject(notificationService)
                 .environmentObject(geofenceManager)
+                .environmentObject(navigationCoordinator)
                 .preferredColorScheme(.dark)
                 .task {
                     // Request notification permission on launch
@@ -32,11 +51,28 @@ struct FloatApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: .floatAPNsTokenReceived)) { note in
                     handleAPNsToken(note)
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .floatDealExpiryNotificationTapped)) { note in
+                    if let dealId = note.userInfo?["dealId"] as? UUID {
+                        navigationCoordinator.navigateToDeal(dealId)
+                    }
+                }
                 .onReceive(NotificationCenter.default.publisher(for: .floatGeofenceRefreshNeeded)) { _ in
                     handleGeofenceRefresh()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .floatNotificationSyncNeeded)) { _ in
                     handleNotificationSync()
+                }
+                .alert("Enable Deal Reminders?",
+                       isPresented: Binding(
+                           get: { BookmarkService.shared.showNotificationPrePrompt },
+                           set: { BookmarkService.shared.showNotificationPrePrompt = $0 }
+                       )) {
+                    Button("Enable") {
+                        Task { await BookmarkService.shared.grantNotificationPermission() }
+                    }
+                    Button("Not Now", role: .cancel) { }
+                } message: {
+                    Text("Get notified before your bookmarked deals expire")
                 }
                 .onChange(of: authService.isAuthenticated) { _, isAuthenticated in
                     if isAuthenticated {
@@ -110,6 +146,20 @@ struct FloatApp: App {
     }
 
     // MARK: - SDK Initialization
+
+    // MARK: - Notification Response Handler
+
+    private func handleNotificationResponse(_ response: UNNotificationResponse) {
+        let userInfo = response.notification.request.content.userInfo
+        guard let dealIdString = userInfo["dealId"] as? String,
+              let dealId = UUID(uuidString: dealIdString) else { return }
+
+        if response.actionIdentifier == NotificationScheduler.viewDealActionId ||
+           response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+            logger.info("Opening deal from notification: \(dealId)")
+            navigationCoordinator.navigateToDeal(dealId)
+        }
+    }
 
     /// Central SDK bootstrap. Called once at app launch before any scene is created.
     private func configureSDKs() {

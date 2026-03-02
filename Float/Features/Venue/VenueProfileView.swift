@@ -1,3 +1,6 @@
+// VenueProfileView.swift
+// Float
+
 import SwiftUI
 
 struct VenueProfileView: View {

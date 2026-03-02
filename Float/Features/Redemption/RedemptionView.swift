@@ -1,9 +1,12 @@
+// RedemptionView.swift
+// Float
+
 import SwiftUI
 
 struct RedemptionView: View {
     let deal: Deal
     @StateObject private var viewModel = RedemptionViewModel()
-    @State private var userId: UUID = UUID()
+    @State private var userId = UUID()
     @Environment(\.dismiss) var dismiss
     
     var body: some View {

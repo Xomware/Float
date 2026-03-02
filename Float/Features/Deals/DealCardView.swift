@@ -1,3 +1,6 @@
+// DealCardView.swift
+// Float
+
 import SwiftUI
 
 struct DealCardView: View {
