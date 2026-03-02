@@ -1,30 +1,20 @@
 import Foundation
 
-// MARK: - Friend Connection
-
 struct FriendConnection: Codable, Identifiable {
     let id: UUID
     let requesterId: UUID
     let addresseeId: UUID
     let status: FriendStatus
     let createdAt: Date
-
     enum CodingKeys: String, CodingKey {
-        case id
+        case id, status
         case requesterId = "requester_id"
         case addresseeId = "addressee_id"
-        case status
         case createdAt = "created_at"
     }
 }
 
-enum FriendStatus: String, Codable {
-    case pending
-    case accepted
-    case declined
-}
-
-// MARK: - Friend Activity Item
+enum FriendStatus: String, Codable { case pending, accepted, declined }
 
 struct FriendActivityItem: Identifiable {
     let id: UUID
@@ -41,14 +31,11 @@ struct FriendActivityItem: Identifiable {
     var likeCount: Int
 }
 
-// MARK: - Activity Like
-
 struct ActivityLike: Codable, Identifiable {
     let id: UUID
     let userId: UUID
     let redemptionId: UUID
     let createdAt: Date
-
     enum CodingKeys: String, CodingKey {
         case id
         case userId = "user_id"
@@ -56,8 +43,6 @@ struct ActivityLike: Codable, Identifiable {
         case createdAt = "created_at"
     }
 }
-
-// MARK: - Friend Activity Response (from Supabase join query)
 
 struct FriendActivityResponse: Codable {
     let id: UUID
@@ -67,7 +52,6 @@ struct FriendActivityResponse: Codable {
     let userProfile: ActivityUserProfile
     let deal: ActivityDeal
     let venue: ActivityVenue
-
     enum CodingKeys: String, CodingKey {
         case id
         case userId = "user_id"
@@ -84,10 +68,8 @@ struct ActivityUserProfile: Codable {
     let username: String?
     let displayName: String?
     let avatarUrl: String?
-
     enum CodingKeys: String, CodingKey {
-        case id
-        case username
+        case id, username
         case displayName = "display_name"
         case avatarUrl = "avatar_url"
     }
@@ -97,10 +79,8 @@ struct ActivityDeal: Codable {
     let id: UUID
     let title: String
     let venueId: UUID
-
     enum CodingKeys: String, CodingKey {
-        case id
-        case title
+        case id, title
         case venueId = "venue_id"
     }
 }

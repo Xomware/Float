@@ -14,53 +14,36 @@ final class FriendConnectionsViewModel: ObservableObject {
     @Published var errorMessage: String?
 
     private let friendService: FriendService
-
-    init(friendService: FriendService = .shared) {
-        self.friendService = friendService
-    }
+    init(friendService: FriendService = .shared) { self.friendService = friendService }
 
     func loadFriends() async {
-        isLoading = true
-        defer { isLoading = false }
+        isLoading = true; defer { isLoading = false }
         do {
             async let f = friendService.fetchFriends()
             async let p = friendService.fetchPendingRequests()
-            friends = try await f
-            pendingRequests = try await p
-        } catch {
-            logger.error("Failed to load friends: \(error.localizedDescription)")
-            errorMessage = error.localizedDescription
-        }
+            friends = try await f; pendingRequests = try await p
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func searchUsers() async {
         guard searchQuery.count >= 2 else { searchResults = []; return }
-        isSearching = true
-        defer { isSearching = false }
-        do { searchResults = try await friendService.searchUsers(query: searchQuery) }
-        catch { logger.error("Search failed: \(error.localizedDescription)") }
+        isSearching = true; defer { isSearching = false }
+        do { searchResults = try await friendService.searchUsers(query: searchQuery) } catch { }
     }
 
     func sendRequest(to userId: UUID) async {
-        do {
-            try await friendService.sendFriendRequest(userId: userId)
-            searchResults.removeAll { $0.id == userId }
-        } catch { errorMessage = "Failed to send request" }
+        do { try await friendService.sendFriendRequest(userId: userId); searchResults.removeAll { $0.id == userId } }
+        catch { errorMessage = "Failed to send request" }
     }
 
-    func acceptRequest(_ request: FriendConnection) async {
-        do {
-            try await friendService.acceptFriendRequest(requestId: request.id)
-            pendingRequests.removeAll { $0.id == request.id }
-            await loadFriends()
-        } catch { errorMessage = "Failed to accept request" }
+    func acceptRequest(_ req: FriendConnection) async {
+        do { try await friendService.acceptFriendRequest(requestId: req.id); pendingRequests.removeAll { $0.id == req.id }; await loadFriends() }
+        catch { errorMessage = "Failed to accept request" }
     }
 
-    func declineRequest(_ request: FriendConnection) async {
-        do {
-            try await friendService.declineFriendRequest(requestId: request.id)
-            pendingRequests.removeAll { $0.id == request.id }
-        } catch { errorMessage = "Failed to decline request" }
+    func declineRequest(_ req: FriendConnection) async {
+        do { try await friendService.declineFriendRequest(requestId: req.id); pendingRequests.removeAll { $0.id == req.id } }
+        catch { errorMessage = "Failed to decline request" }
     }
 }
 
@@ -70,24 +53,21 @@ struct FriendConnectionsView: View {
 
     var body: some View {
         List {
-            Section {
+            Section("Find Friends") {
                 HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                    Image(systemName: "magnifyingglass").foregroundStyle(FloatColors.adaptiveTextSecondary)
                     TextField("Search by username", text: $viewModel.searchQuery)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
                         .onSubmit { Task { await viewModel.searchUsers() } }
                     if viewModel.isSearching { ProgressView().scaleEffect(0.8) }
                 }
-            } header: { Text("Find Friends") }
+            }
 
             if !viewModel.searchResults.isEmpty {
                 Section("Search Results") {
                     ForEach(viewModel.searchResults) { user in
                         HStack {
-                            userRow(user)
-                            Spacer()
+                            userRow(user); Spacer()
                             Button { Task { await viewModel.sendRequest(to: user.id) } } label: {
                                 Image(systemName: "person.badge.plus").foregroundStyle(FloatColors.primary)
                             }.buttonStyle(.plain)
@@ -98,15 +78,14 @@ struct FriendConnectionsView: View {
 
             if !viewModel.pendingRequests.isEmpty {
                 Section("Pending Requests") {
-                    ForEach(viewModel.pendingRequests) { request in
+                    ForEach(viewModel.pendingRequests) { req in
                         HStack {
-                            Text(request.requesterId.uuidString.prefix(8) + "...")
-                                .font(FloatFont.body())
+                            Text(req.requesterId.uuidString.prefix(8) + "...").font(FloatFont.body())
                             Spacer()
-                            Button { Task { await viewModel.acceptRequest(request) } } label: {
+                            Button { Task { await viewModel.acceptRequest(req) } } label: {
                                 Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).font(.title3)
                             }.buttonStyle(.plain)
-                            Button { Task { await viewModel.declineRequest(request) } } label: {
+                            Button { Task { await viewModel.declineRequest(req) } } label: {
                                 Image(systemName: "xmark.circle.fill").foregroundStyle(.red).font(.title3)
                             }.buttonStyle(.plain)
                         }
@@ -117,25 +96,18 @@ struct FriendConnectionsView: View {
             Section("Friends (\(viewModel.friends.count))") {
                 if viewModel.friends.isEmpty && !viewModel.isLoading {
                     Text("No friends yet. Search to connect!")
-                        .font(FloatFont.body())
-                        .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                        .font(FloatFont.body()).foregroundStyle(FloatColors.adaptiveTextSecondary)
                 } else {
                     ForEach(viewModel.friends) { friend in userRow(friend) }
                 }
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("Connections")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } }
-        }
+        .navigationTitle("Connections").navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } } }
         .task { await viewModel.loadFriends() }
         .onChange(of: viewModel.searchQuery) { _ in
-            Task {
-                try? await Task.sleep(nanoseconds: 300_000_000)
-                await viewModel.searchUsers()
-            }
+            Task { try? await Task.sleep(nanoseconds: 300_000_000); await viewModel.searchUsers() }
         }
     }
 
@@ -149,14 +121,10 @@ struct FriendConnectionsView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.displayName ?? "Float User").font(FloatFont.body(.semibold))
-                if let username = user.username {
-                    Text("@\(username)").font(FloatFont.caption()).foregroundStyle(FloatColors.adaptiveTextSecondary)
-                }
+                if let u = user.username { Text("@\(u)").font(FloatFont.caption()).foregroundStyle(FloatColors.adaptiveTextSecondary) }
             }
         }
     }
 }
 
-#Preview {
-    NavigationStack { FriendConnectionsView() }.preferredColorScheme(.dark)
-}
+#Preview { NavigationStack { FriendConnectionsView() }.preferredColorScheme(.dark) }

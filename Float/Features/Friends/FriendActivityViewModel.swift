@@ -11,7 +11,6 @@ final class FriendActivityViewModel: ObservableObject {
     @Published var hasLoaded = false
 
     private let friendService: FriendService
-
     var isEmpty: Bool { hasLoaded && activityItems.isEmpty }
 
     init(friendService: FriendService = .shared) {
@@ -19,13 +18,10 @@ final class FriendActivityViewModel: ObservableObject {
     }
 
     func loadActivity() async {
-        isLoading = true
-        errorMessage = nil
+        isLoading = true; errorMessage = nil
         defer { isLoading = false; hasLoaded = true }
-
         do {
             activityItems = try await friendService.fetchFriendActivity(limit: 30)
-            logger.info("Loaded \(self.activityItems.count) activity items")
         } catch {
             logger.error("Failed to load activity: \(error.localizedDescription)")
             errorMessage = "Couldn't load friend activity. Pull to retry."
@@ -40,8 +36,8 @@ final class FriendActivityViewModel: ObservableObject {
         activityItems[index].likeCount += activityItems[index].isLiked ? 1 : -1
 
         do {
-            let isNowLiked = try await friendService.toggleLike(redemptionId: item.redemptionId)
-            activityItems[index].isLiked = isNowLiked
+            let liked = try await friendService.toggleLike(redemptionId: item.redemptionId)
+            activityItems[index].isLiked = liked
         } catch {
             // Revert on failure
             activityItems[index].isLiked.toggle()

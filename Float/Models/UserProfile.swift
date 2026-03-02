@@ -1,6 +1,3 @@
-// UserProfile.swift
-// Float
-
 import Foundation
 
 struct UserProfile: Codable, Identifiable {
@@ -35,8 +32,6 @@ struct UserProfile: Codable, Identifiable {
     }
 }
 
-// MARK: - Activity Visibility
-
 enum ActivityVisibility: String, Codable, CaseIterable {
     case `public` = "public"
     case friends = "friends"
@@ -49,7 +44,6 @@ enum ActivityVisibility: String, Codable, CaseIterable {
         case .private: return "Only Me"
         }
     }
-
     var icon: String {
         switch self {
         case .public: return "globe"
