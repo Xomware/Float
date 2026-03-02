@@ -29,17 +29,24 @@ final class FriendActivityViewModel: ObservableObject {
     }
 
     func toggleLike(for item: FriendActivityItem) async {
-        guard let i = activityItems.firstIndex(where: { $0.id == item.id }) else { return }
-        activityItems[i].isLiked.toggle()
-        activityItems[i].likeCount += activityItems[i].isLiked ? 1 : -1
+        guard let index = activityItems.firstIndex(where: { $0.id == item.id }) else { return }
+
+        // Optimistic update
+        activityItems[index].isLiked.toggle()
+        activityItems[index].likeCount += activityItems[index].isLiked ? 1 : -1
+
         do {
             let liked = try await friendService.toggleLike(redemptionId: item.redemptionId)
-            activityItems[i].isLiked = liked
+            activityItems[index].isLiked = liked
         } catch {
-            activityItems[i].isLiked.toggle()
-            activityItems[i].likeCount += activityItems[i].isLiked ? 1 : -1
+            // Revert on failure
+            activityItems[index].isLiked.toggle()
+            activityItems[index].likeCount += activityItems[index].isLiked ? 1 : -1
+            logger.error("Failed to toggle like: \(error.localizedDescription)")
         }
     }
 
-    func refresh() async { await loadActivity() }
+    func refresh() async {
+        await loadActivity()
+    }
 }
