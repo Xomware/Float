@@ -1,3 +1,6 @@
+// ProfileView.swift
+// Float
+
 import SwiftUI
 
 // MARK: - ProfileViewModel
@@ -50,7 +53,7 @@ final class ProfileViewModel: ObservableObject {
             MockRedemption(dealTitle: "30% Off Draft Beers", venueName: "Happy Hour Haven", savings: 6.00,
                            date: Date().addingTimeInterval(-345600), category: "drink"),
             MockRedemption(dealTitle: "Flash: $3 Shots", venueName: "Late Night Eats", savings: 5.00,
-                           date: Date().addingTimeInterval(-518400), category: "flash"),
+                           date: Date().addingTimeInterval(-518400), category: "flash")
         ]
         totalSaved = recentRedemptions.reduce(0) { $0 + $1.savings }
         editName = profile?.displayName ?? ""
@@ -59,15 +62,15 @@ final class ProfileViewModel: ObservableObject {
     }
 
     func saveEdits() async {
-        guard let p = profile else { return }
+        guard let current = profile else { return }
         profile = UserProfile(
-            id: p.id, username: p.username,
-            displayName: editName.isEmpty ? p.displayName : editName,
-            avatarUrl: p.avatarUrl, bio: editBio,
-            locationCity: p.locationCity, locationState: p.locationState,
-            totalRedemptions: p.totalRedemptions, totalSavings: p.totalSavings,
-            notificationPrefs: p.notificationPrefs, isMerchant: p.isMerchant,
-            createdAt: p.createdAt
+            id: current.id, username: current.username,
+            displayName: editName.isEmpty ? current.displayName : editName,
+            avatarUrl: current.avatarUrl, bio: editBio,
+            locationCity: current.locationCity, locationState: current.locationState,
+            totalRedemptions: current.totalRedemptions, totalSavings: current.totalSavings,
+            notificationPrefs: current.notificationPrefs, isMerchant: current.isMerchant,
+            createdAt: current.createdAt
         )
         isEditing = false
     }
@@ -292,24 +295,24 @@ struct ProfileView: View {
             }
 
             VStack(spacing: FloatSpacing.sm) {
-                ForEach(viewModel.recentRedemptions.prefix(5)) { r in
+                ForEach(viewModel.recentRedemptions.prefix(5)) { redemption in
                     HStack(spacing: FloatSpacing.md) {
                         ZStack {
                             Circle()
-                                .fill(categoryColor(r.category).opacity(0.15))
+                                .fill(categoryColor(redemption.category).opacity(0.15))
                                 .frame(width: 36, height: 36)
-                            Image(systemName: categoryIcon(r.category))
+                            Image(systemName: categoryIcon(redemption.category))
                                 .font(.system(size: 14))
-                                .foregroundStyle(categoryColor(r.category))
+                                .foregroundStyle(categoryColor(redemption.category))
                         }
                         .accessibilityHidden(true)
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(r.dealTitle)
+                            Text(redemption.dealTitle)
                                 .font(FloatFont.body())
                                 .foregroundStyle(FloatColors.adaptiveTextPrimary)
                                 .lineLimit(1)
-                            Text(r.venueName)
+                            Text(redemption.venueName)
                                 .font(FloatFont.caption())
                                 .foregroundStyle(FloatColors.adaptiveTextSecondary)
                         }
@@ -317,17 +320,17 @@ struct ProfileView: View {
                         Spacer()
 
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text("-$\(String(format: "%.2f", r.savings))")
+                            Text("-$\(String(format: "%.2f", redemption.savings))")
                                 .font(FloatFont.caption(.semibold))
                                 .foregroundStyle(FloatColors.success)
-                            Text(r.date, style: .relative)
+                            Text(redemption.date, style: .relative)
                                 .font(.caption2)
                                 .foregroundStyle(FloatColors.adaptiveTextSecondary)
                         }
                     }
                     .padding(.vertical, FloatSpacing.xs)
 
-                    if r.id != viewModel.recentRedemptions.prefix(5).last?.id {
+                    if redemption.id != viewModel.recentRedemptions.prefix(5).last?.id {
                         Divider().background(FloatColors.adaptiveSeparator)
                     }
                 }

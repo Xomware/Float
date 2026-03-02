@@ -1,3 +1,6 @@
+// SearchView.swift
+// Float
+
 import SwiftUI
 
 // MARK: - VenueSearchViewModel
@@ -35,16 +38,16 @@ final class VenueSearchViewModel: ObservableObject {
             isSearching = true
             defer { isSearching = false }
 
-            let q = trimmed.lowercased()
+            let queryLower = trimmed.lowercased()
             dealResults = mockDeals.filter {
-                $0.title.lowercased().contains(q) ||
-                ($0.description?.lowercased().contains(q) ?? false) ||
-                ($0.venueName?.lowercased().contains(q) ?? false) ||
-                $0.category.lowercased().contains(q)
+                $0.title.lowercased().contains(queryLower) ||
+                ($0.description?.lowercased().contains(queryLower) ?? false) ||
+                ($0.venueName?.lowercased().contains(queryLower) ?? false) ||
+                $0.category.lowercased().contains(queryLower)
             }
             venueResults = mockVenues.filter {
-                $0.name.lowercased().contains(q) ||
-                ($0.address?.lowercased().contains(q) ?? false)
+                $0.name.lowercased().contains(queryLower) ||
+                ($0.address?.lowercased().contains(queryLower) ?? false)
             }
             hasSearched = true
             AnalyticsService.shared.track(.searchQueried(query: query))
@@ -52,10 +55,10 @@ final class VenueSearchViewModel: ObservableObject {
     }
 
     func addRecentSearch(_ term: String) {
-        let t = term.trimmingCharacters(in: .whitespaces)
-        guard !t.isEmpty else { return }
-        recentSearches.removeAll { $0 == t }
-        recentSearches.insert(t, at: 0)
+        let trimmedTerm = term.trimmingCharacters(in: .whitespaces)
+        guard !trimmedTerm.isEmpty else { return }
+        recentSearches.removeAll { $0 == trimmedTerm }
+        recentSearches.insert(trimmedTerm, at: 0)
         if recentSearches.count > 10 { recentSearches = Array(recentSearches.prefix(10)) }
         saveRecentSearches()
     }

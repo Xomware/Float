@@ -1,3 +1,6 @@
+// AuthService.swift
+// Float
+
 import SwiftUI
 import Supabase
 import AuthenticationServices
@@ -235,7 +238,7 @@ final class SignInWithAppleHelper: NSObject, ASAuthorizationControllerDelegate, 
     }
     
     // swiftlint:disable:next line_length
-nonisolated func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+    nonisolated func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
         guard
             let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
             let tokenData = credential.identityToken,

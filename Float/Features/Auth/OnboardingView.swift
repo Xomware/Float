@@ -1,3 +1,6 @@
+// OnboardingView.swift
+// Float
+
 import SwiftUI
 
 struct OnboardingView: View {
@@ -163,7 +166,7 @@ struct OnboardingStep3View: View {
                     FloatTextField("Username (no spaces)", text: $username, icon: "at")
                         .onChange(of: username) { _, new in
                             username = new.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "_" }
-                            usernameError = new.count > 0 && new.count < 3 ? "Username must be at least 3 characters" : nil
+                            usernameError = !new.isEmpty && new.count < 3 ? "Username must be at least 3 characters" : nil
                         }
                     if let error = usernameError {
                         Text(error).font(FloatFont.caption()).foregroundStyle(FloatColors.error).padding(.leading, FloatSpacing.sm)

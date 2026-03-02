@@ -1,3 +1,6 @@
+// DealFiltersView.swift
+// Float
+
 import SwiftUI
 
 // MARK: - Filter State

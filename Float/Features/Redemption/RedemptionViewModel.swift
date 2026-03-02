@@ -1,3 +1,6 @@
+// RedemptionViewModel.swift
+// Float
+
 import SwiftUI
 import Supabase
 import CryptoKit

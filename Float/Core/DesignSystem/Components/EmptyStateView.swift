@@ -1,3 +1,6 @@
+// EmptyStateView.swift
+// Float
+
 import SwiftUI
 
 // MARK: - Empty State Configuration

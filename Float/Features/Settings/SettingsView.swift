@@ -1,4 +1,8 @@
+// SettingsView.swift
+// Float
+
 import SwiftUI
+import UserNotifications
 
 // MARK: - SettingsViewModel
 
@@ -10,6 +14,7 @@ final class SettingsViewModel: ObservableObject {
     @Published var useMetric = false
     @Published var defaultRadiusMiles: Double = 2.0
     @Published var isPrivateProfile = false
+    @Published var dealExpiryReminders = true
     @Published var appVersion = ""
     @Published var buildNumber = ""
 
@@ -35,6 +40,9 @@ final class SettingsViewModel: ObservableObject {
         defaultRadiusMiles = defaults.double(forKey: "default_radius_miles").clamped(to: 0.25...10)
         if defaultRadiusMiles == 0 { defaultRadiusMiles = 2.0 }
         isPrivateProfile = defaults.bool(forKey: "is_private_profile")
+        dealExpiryReminders = defaults.contains(key: "dealExpiryReminders")
+            ? defaults.bool(forKey: "dealExpiryReminders")
+            : true
         let rawMode = defaults.string(forKey: "appearance_mode") ?? "System"
         prefersDarkMode = AppearanceMode(rawValue: rawMode) ?? .system
 
@@ -48,6 +56,7 @@ final class SettingsViewModel: ObservableObject {
         defaults.set(useMetric, forKey: "use_metric")
         defaults.set(defaultRadiusMiles, forKey: "default_radius_miles")
         defaults.set(isPrivateProfile, forKey: "is_private_profile")
+        defaults.set(dealExpiryReminders, forKey: "dealExpiryReminders")
         defaults.set(prefersDarkMode.rawValue, forKey: "appearance_mode")
     }
 }
@@ -80,6 +89,19 @@ struct SettingsView: View {
 
                 NavigationLink(destination: NotificationPreferencesView()) {
                     settingsRowContent(icon: "bell.fill", title: "Notifications", color: FloatColors.warning)
+                }
+
+                Toggle(isOn: $viewModel.dealExpiryReminders) {
+                    settingsRowContent(icon: "clock.badge.exclamationmark", title: "Deal Expiry Reminders", color: FloatColors.warning)
+                }
+                .tint(FloatColors.primary)
+                .onChange(of: viewModel.dealExpiryReminders) { _ in
+                    viewModel.save()
+                    if !viewModel.dealExpiryReminders {
+                        Task {
+                            await NotificationScheduler.shared.cancelAllAlerts()
+                        }
+                    }
                 }
 
                 Toggle(isOn: $viewModel.isPrivateProfile) {

@@ -1,3 +1,6 @@
+// SocialSharingService.swift
+// Float
+
 import SwiftUI
 import UIKit
 
@@ -40,7 +43,7 @@ final class SocialSharingService {
             .addToReadingList,
             .openInIBooks,
             .markupAsPDF,
-            .saveToCameraRoll,
+            .saveToCameraRoll
         ]
 
         // Present

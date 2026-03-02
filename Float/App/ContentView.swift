@@ -1,3 +1,6 @@
+// ContentView.swift
+// Float
+
 import SwiftUI
 
 struct ContentView: View {
@@ -14,6 +17,10 @@ struct ContentView: View {
             SearchView()
                 .tabItem {
                     Label("Search", systemImage: "magnifyingglass")
+                }
+            FriendActivityView()
+                .tabItem {
+                    Label("Friends", systemImage: "person.2.fill")
                 }
             ProfileView()
                 .tabItem {
