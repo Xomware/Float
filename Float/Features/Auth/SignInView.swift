@@ -25,6 +25,7 @@ struct SignInView: View {
                                 .font(.system(size: 72))
                                 .foregroundStyle(FloatColors.primary)
                                 .padding(.top, 60)
+                                .accessibilityIdentifier("signIn_heroIcon")
                             
                             Text("Float")
                                 .font(.system(.largeTitle, design: .rounded, weight: .bold))

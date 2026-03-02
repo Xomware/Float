@@ -42,6 +42,14 @@ class MapViewModel: ObservableObject {
     @Published var activeNowOnly: Bool = false
     @Published var userLocation: CLLocationCoordinate2D?
     @Published var isRefreshing = false
+    @Published var clusteredDeals: [DealPin] = []
+    @Published var showClusterSheet = false
+    @Published var showListView = false
+
+    /// MKAnnotation objects for the UIViewRepresentable map.
+    var mapAnnotations: [DealMapAnnotation] {
+        filteredPins.map { DealMapAnnotation(dealPin: $0) }
+    }
     
     private let locationService = LocationService()
     private var locationTask: Task<Void, Never>?
@@ -138,8 +146,29 @@ class MapViewModel: ObservableObject {
     
     func selectPin(_ pin: DealPin) {
         withAnimation(.spring()) {
+            showClusterSheet = false
+            clusteredDeals = []
             selectedPin = selectedPin?.id == pin.id ? nil : pin
         }
+    }
+
+    func handleClusterTap(_ deals: [DealPin]) {
+        withAnimation(.spring()) {
+            selectedPin = nil
+            clusteredDeals = deals
+            showClusterSheet = true
+        }
+    }
+
+    func dismissClusterSheet() {
+        withAnimation(.spring()) {
+            showClusterSheet = false
+            clusteredDeals = []
+        }
+    }
+
+    func toggleListView() {
+        showListView.toggle()
     }
     
     deinit {

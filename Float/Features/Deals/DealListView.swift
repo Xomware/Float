@@ -9,6 +9,7 @@ struct DealListView: View {
     @State private var searchFilter = SearchFilter()
     @State private var showFilters = false
     @State private var showSavedFilters = false
+    private let networkMonitor = NetworkMonitor.shared
 
     /// Deals to display: use search results when a filter is active, otherwise the VM's filtered list.
     private var displayedDeals: [Deal] {
@@ -25,6 +26,24 @@ struct DealListView: View {
                     .onChange(of: searchFilter.query) { _ in
                         triggerSearch()
                     }
+
+                // Offline banner
+                if !networkMonitor.isConnected {
+                    OfflineBannerView(cacheDate: viewModel.cacheDate)
+                        .padding(.top, FloatSpacing.xs)
+                }
+
+                // Cache age indicator when showing cached data while online
+                if viewModel.isShowingCachedData && networkMonitor.isConnected, let cacheDate = viewModel.cacheDate {
+                    HStack(spacing: FloatSpacing.xs) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.caption)
+                        Text("Last updated \(cacheDate.relativeDescription)")
+                            .font(FloatFont.caption2())
+                    }
+                    .foregroundStyle(FloatColors.adaptiveTextSecondary)
+                    .padding(.vertical, FloatSpacing.xs)
+                }
 
                 // Header with deal count + filter button
                 VStack(alignment: .leading, spacing: FloatSpacing.sm) {
@@ -78,7 +97,8 @@ struct DealListView: View {
                                 : FloatColors.adaptiveTextPrimary)
                             .cornerRadius(FloatSpacing.badgeRadius)
                         }
-                        .accessibilityLabel("Filter deals")
+                        .accessibilityIdentifier("filterDealsButton")
+                        .accessibilityLabel("Filter deals\(searchFilter.activeFilterCount > 0 ? ", \(searchFilter.activeFilterCount) active" : "")")
                         .sheet(isPresented: $showFilters) {
                             SearchFilterView(filter: $searchFilter)
                                 .presentationDetents([.medium, .large])
@@ -143,6 +163,9 @@ struct DealListView: View {
                     } else {
                         // Deal list with animated cards
                         ScrollView {
+                            // Personalized recommendations
+                            RecommendedDealsView(deals: viewModel.filteredDeals)
+
                             LazyVStack(spacing: FloatSpacing.sm) {
                                 ForEach(Array(displayedDeals.enumerated()), id: \.element.id) { index, deal in
                                     NavigationLink(destination: DealDetailView(deal: deal)) {
@@ -177,7 +200,7 @@ struct DealListView: View {
             }
             .navigationTitle("Active Deals")
             .navigationBarTitleDisplayMode(.large)
-            .refreshable { await viewModel.loadDeals() }
+            .refreshable { await viewModel.loadDeals(forceRefresh: true) }
         }
         .task { await viewModel.loadDeals() }
     }

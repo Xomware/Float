@@ -18,6 +18,10 @@ struct ContentView: View {
                 .tabItem {
                     Label("Search", systemImage: "magnifyingglass")
                 }
+            FriendActivityView()
+                .tabItem {
+                    Label("Friends", systemImage: "person.2.fill")
+                }
             ProfileView()
                 .tabItem {
                     Label("Profile", systemImage: "person.fill")

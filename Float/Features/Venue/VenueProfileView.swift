@@ -10,6 +10,7 @@ struct VenueProfileView: View {
     @State private var venue: Venue?
     @State private var venueDeals: [Deal] = []
     @State private var isLoading = false
+    @State private var venuePhotos: [VenuePhoto] = []
     @Environment(\.dismiss) var dismiss
     
     var body: some View {
@@ -17,16 +18,10 @@ struct VenueProfileView: View {
             FloatColors.background.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header image area
+                // Photo gallery hero section
                 ZStack(alignment: .topLeading) {
-                    RoundedRectangle(cornerRadius: FloatSpacing.cardRadius)
-                        .fill(FloatColors.cardBackground)
-                        .frame(height: 200)
-                    
-                    Image(systemName: "building.2.fill")
-                        .font(.system(size: 80))
-                        .foregroundStyle(FloatColors.primary.opacity(0.3))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    VenuePhotoGalleryView(photos: venuePhotos)
+                        .clipShape(RoundedRectangle(cornerRadius: FloatSpacing.cardRadius))
                     
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
@@ -182,6 +177,7 @@ struct VenueProfileView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await loadVenueData()
+            await loadVenuePhotos()
         }
     }
     
@@ -232,5 +228,13 @@ struct VenueProfileView: View {
                 distanceFromUser: 500
             )
         ]
+    }
+
+    private func loadVenuePhotos() async {
+        do {
+            venuePhotos = try await PhotoService.shared.fetchVenuePhotos(venueId: venueId)
+        } catch {
+            venuePhotos = []
+        }
     }
 }
