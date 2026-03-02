@@ -217,6 +217,7 @@ struct SettingsView: View {
                             .foregroundStyle(FloatColors.error)
                     }
                 }
+            // swiftlint:disable:next multiple_closures_with_trailing_closure
             } header: {
                 Text("Danger Zone")
             } footer: {

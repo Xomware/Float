@@ -1,5 +1,7 @@
 import Foundation
 
+// MARK: - Friend Connection
+
 struct FriendConnection: Codable, Identifiable {
     let id: UUID
     let requesterId: UUID
@@ -17,8 +19,12 @@ struct FriendConnection: Codable, Identifiable {
 }
 
 enum FriendStatus: String, Codable {
-    case pending, accepted, declined
+    case pending
+    case accepted
+    case declined
 }
+
+// MARK: - Friend Activity Item
 
 struct FriendActivityItem: Identifiable {
     let id: UUID
@@ -35,6 +41,8 @@ struct FriendActivityItem: Identifiable {
     var likeCount: Int
 }
 
+// MARK: - Activity Like
+
 struct ActivityLike: Codable, Identifiable {
     let id: UUID
     let userId: UUID
@@ -48,6 +56,8 @@ struct ActivityLike: Codable, Identifiable {
         case createdAt = "created_at"
     }
 }
+
+// MARK: - Friend Activity Response (from Supabase join query)
 
 struct FriendActivityResponse: Codable {
     let id: UUID
@@ -76,7 +86,8 @@ struct ActivityUserProfile: Codable {
     let avatarUrl: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, username
+        case id
+        case username
         case displayName = "display_name"
         case avatarUrl = "avatar_url"
     }
@@ -88,7 +99,8 @@ struct ActivityDeal: Codable {
     let venueId: UUID
 
     enum CodingKeys: String, CodingKey {
-        case id, title
+        case id
+        case title
         case venueId = "venue_id"
     }
 }
