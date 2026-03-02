@@ -7,20 +7,24 @@ import MapKit
 struct MapView: View {
     @StateObject private var viewModel = MapViewModel()
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Map with deal pins
-            Map(coordinateRegion: $viewModel.region, annotationItems: viewModel.filteredPins) { pin in
-                MapAnnotation(coordinate: pin.coordinate) {
-                    DealPinView(pin: pin, isSelected: viewModel.selectedPin?.id == pin.id)
-                        .onTapGesture { viewModel.selectPin(pin) }
+            // MKMapView with clustering
+            DealMapView(
+                region: $viewModel.region,
+                annotations: viewModel.mapAnnotations,
+                onSelectAnnotation: { annotation in
+                    viewModel.selectPin(annotation.dealPin)
+                },
+                onSelectCluster: { cluster in
+                    viewModel.handleClusterTap(cluster.dealPins)
                 }
-            }
+            )
             .ignoresSafeArea()
-            
-            // Top-right controls
-            VStack(alignment: .trailing, spacing: FloatSpacing.sm) {
+
+            // Top controls
+            VStack {
                 HStack(spacing: FloatSpacing.sm) {
                     // Active Now toggle
                     Button(action: { viewModel.toggleActiveNowFilter() }) {
@@ -35,43 +39,97 @@ struct MapView: View {
                         .foregroundStyle(viewModel.activeNowOnly ? .white : FloatColors.textPrimary)
                         .cornerRadius(FloatSpacing.badgeRadius)
                     }
-                    
+
                     Spacer()
+
+                    // List toggle button
+                    Button(action: { viewModel.toggleListView() }) {
+                        HStack(spacing: FloatSpacing.xs) {
+                            Image(systemName: viewModel.showListView ? "map.fill" : "list.bullet")
+                            Text(viewModel.showListView ? "Map" : "List")
+                                .font(FloatFont.caption(.semibold))
+                        }
+                        .padding(.horizontal, FloatSpacing.sm)
+                        .padding(.vertical, 6)
+                        .background(FloatColors.cardBackground)
+                        .foregroundStyle(FloatColors.textPrimary)
+                        .cornerRadius(FloatSpacing.badgeRadius)
+                        .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
+                    }
                 }
-                .padding(FloatSpacing.md)
-                
+                .padding(.horizontal, FloatSpacing.md)
+                .padding(.top, FloatSpacing.md)
+
                 Spacer()
             }
-            .padding(.top, FloatSpacing.md)
-            .padding(.trailing, FloatSpacing.md)
-            
-            // Bottom sheet with deal details
-            if let selected = viewModel.selectedPin {
+
+            // List view overlay
+            if viewModel.showListView {
+                dealListOverlay
+            }
+
+            // Single deal bottom sheet
+            if let selected = viewModel.selectedPin, !viewModel.showClusterSheet {
                 DealBottomSheet(pin: selected, onDismiss: { viewModel.selectPin(selected) })
                     .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            // Cluster bottom sheet
+            if viewModel.showClusterSheet {
+                ClusteredDealsBottomSheet(
+                    deals: viewModel.clusteredDeals,
+                    userLocation: viewModel.userLocation,
+                    onDismiss: { viewModel.dismissClusterSheet() },
+                    onSelectDeal: { pin in
+                        viewModel.dismissClusterSheet()
+                        viewModel.selectPin(pin)
+                    }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .refreshable { await viewModel.refreshDeals() }
         .task { await viewModel.loadNearbyDeals() }
+    }
+
+    private var dealListOverlay: some View {
+        VStack {
+            Spacer().frame(height: 60)
+            ScrollView {
+                LazyVStack(spacing: FloatSpacing.sm) {
+                    ForEach(viewModel.filteredPins) { pin in
+                        ClusteredDealCard(pin: pin, userLocation: viewModel.userLocation)
+                            .onTapGesture {
+                                viewModel.toggleListView()
+                                viewModel.selectPin(pin)
+                            }
+                    }
+                }
+                .padding(.horizontal, FloatSpacing.md)
+                .padding(.vertical, FloatSpacing.sm)
+            }
+            .background(FloatColors.background.opacity(0.95))
+        }
+        .transition(.opacity)
     }
 }
 
 struct DealPinView: View {
     let pin: DealPin
     let isSelected: Bool
-    
+
     var body: some View {
         VStack(spacing: 2) {
             ZStack {
                 Circle()
                     .fill(pin.categoryColor)
                     .frame(width: isSelected ? 44 : 36, height: isSelected ? 44 : 36)
-                
+
                 Image(systemName: categoryIcon)
                     .foregroundStyle(.white)
                     .font(.system(size: isSelected ? 18 : 14))
             }
-            
+
             Image(systemName: "arrowtriangle.down.fill")
                 .foregroundStyle(pin.categoryColor)
                 .font(.system(size: 8))
@@ -80,7 +138,7 @@ struct DealPinView: View {
         .scaleEffect(isSelected ? 1.1 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
     }
-    
+
     private var categoryIcon: String {
         switch pin.category.lowercased() {
         case "drink": return "wineglass.fill"
@@ -96,34 +154,30 @@ struct DealBottomSheet: View {
     let pin: DealPin
     let onDismiss: () -> Void
     @State private var showDetail = false
-    
+
     var body: some View {
         ZStack(alignment: .top) {
-            // Tap-to-dismiss background
             Color.black.opacity(0.4)
                 .ignoresSafeArea()
                 .onTapGesture { onDismiss() }
-            
+
             FloatCard {
                 VStack(alignment: .leading, spacing: FloatSpacing.sm) {
-                    // Handle bar
                     RoundedRectangle(cornerRadius: 2.5)
                         .fill(FloatColors.textSecondary.opacity(0.3))
                         .frame(width: 40, height: 5)
                         .frame(maxWidth: .infinity)
                         .padding(.bottom, FloatSpacing.sm)
-                    
-                    // Deal info
+
                     VStack(alignment: .leading, spacing: FloatSpacing.xs) {
                         Text(pin.venueName)
                             .font(FloatFont.headline())
-                        
+
                         Text(pin.dealTitle)
                             .font(FloatFont.body())
                             .foregroundStyle(FloatColors.textSecondary)
                             .lineLimit(2)
-                        
-                        // Category badge and timer
+
                         HStack(spacing: FloatSpacing.sm) {
                             FloatBadge(pin.category.uppercased(), color: pin.categoryColor)
                             Spacer()
@@ -133,8 +187,7 @@ struct DealBottomSheet: View {
                         }
                     }
                     .padding(.bottom, FloatSpacing.sm)
-                    
-                    // Get Deal CTA
+
                     NavigationLink(destination: DealDetailView(deal: pin.deal)) {
                         FloatButton("Get Deal", icon: "sparkles", style: .primary) {
                             showDetail = true
