@@ -142,7 +142,7 @@ jobs:
 
       # ── Match (code signing) ───────────────────────────────────────────────
       - name: Setup SSH for Match certificate repo
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.9.1
         with:
           ssh-private-key: ${{ secrets.MATCH_SSH_PRIVATE_KEY }}
 
