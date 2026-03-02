@@ -42,7 +42,7 @@ struct Deal: Identifiable, Codable {
     }
 }
 
-struct Venue: Identifiable {
+struct Venue: Identifiable, Codable {
     let id: UUID
     var name: String
     var address: String?
@@ -88,23 +88,45 @@ class DealViewModel: ObservableObject {
     @Published var errorMessage: String?
     /// Non-nil when the initial load failed entirely (shows full-screen error)
     @Published var loadError: Error?
+    /// Whether currently showing cached data
+    @Published var isShowingCachedData = false
+    /// When the cached data was stored
+    @Published var cacheDate: Date?
     
     private let pageSize = 20
     private let locationService = LocationService()
+    private let networkMonitor = NetworkMonitor.shared
     
     init() {
         locationService.startUpdating()
     }
     
-    func loadDeals() async {
+    func loadDeals(forceRefresh: Bool = false) async {
         isLoading = true
         loadError = nil
         errorMessage = nil
+        isShowingCachedData = false
         defer { isLoading = false }
 
         currentPage = 1
         hasMore = true
         deals.removeAll()
+
+        // If force refresh and online, invalidate cache first
+        if forceRefresh && networkMonitor.isConnected {
+            await CacheService.shared.invalidate(key: CacheKey.dealsNearby)
+        }
+
+        // If offline, try cache immediately
+        if !networkMonitor.isConnected {
+            if let cached: [Deal] = await CacheService.shared.fetch(key: CacheKey.dealsNearby, type: [Deal].self) {
+                deals = cached
+                isShowingCachedData = true
+                cacheDate = await CacheService.shared.cacheAge(key: CacheKey.dealsNearby)
+                applyFiltersAndSort()
+                return
+            }
+        }
 
         await loadMoreDeals()
     }
@@ -129,6 +151,12 @@ class DealViewModel: ObservableObject {
         dealCount = deals.count
         hasMore = mockDeals.count == pageSize
         currentPage += 1
+        
+        // Cache the first 50 deals with 2hr TTL on successful fetch
+        if !deals.isEmpty {
+            let dealsToCache = Array(deals.prefix(50))
+            await CacheService.shared.store(dealsToCache, key: CacheKey.dealsNearby, ttl: 7200)
+        }
         
         applyFiltersAndSort()
     }
