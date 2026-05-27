@@ -33,7 +33,7 @@ jobs:
     name: SwiftLint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run SwiftLint
         uses: norio-nomura/action-swiftlint@3.2.1
@@ -47,7 +47,7 @@ jobs:
     needs: lint
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # ── Xcode ──────────────────────────────────────────────────────────────
       - name: Select Xcode ${{ env.XCODE_VERSION }}
@@ -64,7 +64,7 @@ jobs:
 
       # ── SPM cache ──────────────────────────────────────────────────────────
       - name: Cache Swift Package Manager
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/Library/Developer/Xcode/DerivedData
           key: ${{ runner.os }}-xcode-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
@@ -99,7 +99,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: test-output.txt
@@ -116,7 +116,7 @@ jobs:
     environment: testflight   # Requires "testflight" GitHub environment with secrets
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0    # Full history for changelog generation
 
@@ -132,7 +132,7 @@ jobs:
 
       # ── SPM cache ──────────────────────────────────────────────────────────
       - name: Cache Swift Package Manager
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/Library/Developer/Xcode/DerivedData
           key: ${{ runner.os }}-xcode-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
@@ -170,7 +170,7 @@ jobs:
       # ── Upload IPA artifact ────────────────────────────────────────────────
       - name: Upload IPA
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Float-${{ github.run_number }}.ipa
           path: build/Float.ipa
